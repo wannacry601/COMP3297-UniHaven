@@ -1,4 +1,4 @@
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import authenticate, login as auth_login
 from django.contrib.auth.decorators import login_required, permission_required
 from django.http import JsonResponse, HttpResponse
 from rest_framework.generics import GenericAPIView
@@ -19,7 +19,7 @@ def login(request):
         password = request.POST.get("password")
         user = authenticate(request, username=username, password=password)
         if user is not None:
-            login(request, user)
+            auth_login(request, user)
             return JsonResponse({"message": "Login successful"})
         else:
             return JsonResponse({"message": "Invalid credentials"}, status=401)
@@ -29,34 +29,31 @@ class HouseListView(GenericAPIView):
     serializer_class = HouseSerializer
     
     @override
-    def get_queryset(self, filter_by=None, order_by=None):
+    def get_queryset(self):
         """
         Returns a queryset of House objects.
         Filters and sorts the queryset based on the provided parameters.
         If no parameters are provided, returns all House objects.
         """
         queryset = House.objects.all()
-        filter = self.request.query_params.get(filter_by)
-        sort = self.request.query_params.get(order_by)
-        if filter and sort:
-            queryset = queryset.filter(name__contains=filter).order_by(sort)
-        elif filter:
+        filter = self.request.query_params.get('filter_by')
+        sort = self.request.query_params.get('order_by')
+        if filter:
             queryset = queryset.filter(name__contains=filter)
-        elif sort:
+        if sort:
             queryset = queryset.order_by(sort)
-        else:
-            queryset = House.objects.all()
             
         return queryset
 
     @login_required
-    def get(self,request,filter_by,order_by):
+    def get(self,request):
         """
         Handles GET requests to retrieve House objects.
         """
-        queryset = self.get_queryset(filter_by, order_by)
+        queryset = self.get_queryset()
         serializer = self.serializer_class(queryset, many=True)
-        return JsonResponse(serializer.data)
+        if queryset: return JsonResponse(serializer.data, status=200)
+        else: return JsonResponse({"message": "House list not found"}, status=404)
 
     @permission_required('Accommodation.add_house', raise_exception=True)
     def post(self,request):
@@ -73,27 +70,29 @@ class HouseView(GenericAPIView):
     serializer_class = HouseSerializer
     
     @override
-    def get_queryset(self, house_id):
+    def get_queryset(self):
         """
         Returns a queryset of House objects filtered by house_id.
         """
+        house_id = self.request.query_params.get('house_id')
         return House.objects.filter(id=house_id)
 
     @login_required
-    def get(self,request,house_id):
+    def get(self,request):
         """
         Handles GET requests to retrieve a specific House object by house_id.
         """
-        queryset = self.get_queryset(house_id)
+        queryset = self.get_queryset()
         serializer = self.serializer_class(queryset, many=True)
-        return JsonResponse(serializer.data)
+        if queryset: return JsonResponse(serializer.data)
+        return JsonResponse({"message": "House not found"}, status=404)
 
     @permission_required('Accommodation.change_house', raise_exception=True)
-    def post(self,request,house_id):
+    def post(self,request):
         """
         Handles POST requests to update a specific House object by house_id.
         """
-        queryset = self.get_queryset(house_id)
+        queryset = self.get_queryset()
         serializer = self.serializer_class(queryset, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
