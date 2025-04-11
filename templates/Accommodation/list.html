@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CEDARS - Accommodation Service</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f8f8;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 15px;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+        }
+        
+        .logo-container {
+            display: flex;
+            align-items: center;
+        }
+        
+        .logo-container img {
+            max-height: 60px;
+        }
+        
+        .service-title {
+            text-align: right;
+        }
+        
+        .service-title h1 {
+            font-size: 28px;
+            margin: 0;
+            color: #666;
+            font-weight: normal;
+        }
+        
+        .welcome-text {
+            text-align: right;
+            margin-top: 5px;
+            font-size: 14px;
+        }
+        
+        .banner {
+            background-image: url('https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=1200&q=80');
+            background-size: cover;
+            background-position: center;
+            height: 300px;
+            display: flex;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        
+        .banner-title {
+            font-size: 36px;
+            color: #444;
+            margin-left: 10%;
+            background-color: rgba(255, 255, 255, 0.7);
+            padding: 15px 25px;
+            border-radius: 5px;
+        }
+        
+        .filter-container {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .filter-group {
+            margin-bottom: 15px;
+        }
+        
+        .filter-label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            display: block;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+        }
+        
+        .checkbox-item input[type="checkbox"] {
+            margin-right: 5px;
+        }
+        
+        .date-group {
+            display: flex;
+            gap: 20px;
+        }
+        
+        .date-item {
+            display: flex;
+            align-items: center;
+        }
+        
+        .date-item input[type="checkbox"] {
+            margin-right: 5px;
+        }
+        
+        .button-group {
+            margin-top: 20px;
+        }
+        
+        .button {
+            padding: 8px 15px;
+            border: 1px solid #ccc;
+            background-color: #f8f8f8;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        
+        .button:hover {
+            background-color: #e9e9e9;
+        }
+        
+        .property-count {
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+        
+        .property-card {
+            display: flex;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            margin-bottom: 20px;
+        }
+        
+        .property-card-link{
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .property-card-link:hover .property-card {
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            color: inherit;
+            transition: box-shadow 0.3s ease;
+        }
+
+        .property-card-link:visited {
+            color: inherit;
+        }
+
+        .property-image {
+            width: 160px;
+            min-height: 120px;
+            background-color: #eee;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+        }
+        
+        .property-info {
+            flex: 1;
+            padding: 15px;
+        }
+        
+        .property-price {
+            width: 160px;
+            padding: 15px;
+            text-align: right;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        .property-location {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .property-details {
+            display: flex;
+            margin-bottom: 10px;
+        }
+        
+        .property-detail-item {
+            margin-right: 20px;
+        }
+        
+        .property-features {
+            margin-top: 10px;
+        }
+        
+        .price-label {
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+        
+        .price-value {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        .pagination {
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        .footer {
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            font-size: 14px;
+        }
+        
+        .footer-links {
+            margin-top: 10px;
+        }
+        
+        .footer-link {
+            color: #0066cc;
+            text-decoration: none;
+            margin-right: 15px;
+        }
+        
+        .footer-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="service-title">
+                <h1>Accommodation Service</h1>
+                <div class="welcome-text">
+                    Welcome: To be implemented • <a href="#" class="footer-link">Logout</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="banner">
+            <h1 class="banner-title">Property for Lease</h1>
+        </div>
+        
+        <div class="filter-container">
+            <form id="property-search-form" method="get" action="">
+                <div class="filter-group">
+                    <div class="filter-label">Type</div>
+                    <div class="checkbox-group">
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="type-room" name="type" value="Room" {% if request.GET.type == 'Room' %}checked{% endif %}>
+                            <label for="type-room">Room</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="type-flat" name="type" value="Flat" {% if request.GET.type == 'Flat' %}checked{% endif %}>
+                            <label for="type-flat">Flat</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="type-minihall" name="type" value="Mini-hall" {% if request.GET.type == 'Mini-hall' %}checked{% endif %}>
+                            <label for="type-minihall">Mini-hall</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="filter-group">
+                    <div class="filter-label">Price</div>
+                    <div class="checkbox-group">
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="price-lt5000" name="price" value="<5000" {% if request.GET.type == '<5000' %}checked{% endif %}>
+                            <label for="price-lt5000">&lt;5000</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="price-5000-10000" name="price" value="5000-10000">
+                            <label for="price-5000-10000">5000-10000</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="price-gt10000" name="price" value=">10000">
+                            <label for="price-gt10000">&gt;10000</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="filter-group">
+                    <div class="filter-label">Number of bedrooms</div>
+                    <div class="checkbox-group">
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="bedrooms-1" name="bedrooms" value="1">
+                            <label for="bedrooms-1">1</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="bedrooms-2" name="bedrooms" value="2">
+                            <label for="bedrooms-2">2</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="bedrooms-3" name="bedrooms" value="3">
+                            <label for="bedrooms-3">3</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="bedrooms-gt3" name="bedrooms" value=">3">
+                            <label for="bedrooms-gt3">&gt;3</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="filter-group">
+                    <div class="filter-label">Number of beds</div>
+                    <div class="checkbox-group">
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="beds-1" name="beds" value="1">
+                            <label for="beds-1">1</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="beds-2" name="beds" value="2">
+                            <label for="beds-2">2</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="beds-3" name="beds" value="3">
+                            <label for="beds-3">3</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="beds-gt3" name="beds" value=">3">
+                            <label for="beds-gt3">&gt;3</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="filter-group">
+                    <div class="filter-label">Near HKU campus or premises</div>
+                    <div class="checkbox-group">
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="location-cpd" name="location" value="CPD">
+                            <label for="location-cpd">CPD</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="location-eastgate" name="location" value="East Gate">
+                            <label for="location-eastgate">East Gate</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="location-medicalschool" name="location" value="Medical School">
+                            <label for="location-medicalschool">Medical School</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="location-other" name="location" value="Other">
+                            <label for="location-other">Other</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="filter-group">
+                    <div class="filter-label">Period of availability</div>
+                    <div class="date-group">
+                        <div class="date-item">
+                            <input type="checkbox" id="begin-date-check" onchange="toggleDateInput('begin-date-check', 'begin-date')">
+                            <label for="begin-date-check">Beginning Date</label>
+                            <input type="date" id="begin-date" name="begin_date" value="{{ request.GET.begin_date|default:'' }}" disabled>
+                        </div>
+                        <div class="date-item">
+                            <input type="checkbox" id="end-date-check" onchange="toggleDateInput('end-date-check', 'end-date')">
+                            <label for="end-date-check">End Date</label>
+                            <input type="date" id="end-date" name="end_date" value="{{ request.GET.end_date|default:'' }}" disabled>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="button-group">
+                    <button type="button" id="reset-btn" class="button">Reset</button>
+                    <button type="submit" class="button">Search</button>
+                </div>
+            </form>
+        </div>
+        
+        <div class="property-count">
+            Found {{ total_count }} properties for rent
+        </div>
+        
+        {% if houses %}
+            {% for house in houses %}
+                <a href="{% url 'property_detail' house.id %}" class="property-card-link">
+                    <div class="property-card">
+                        <div class="property-image">
+                            <div>Image</div>
+                        </div>
+                        <div class="property-info">
+                            <div class="property-location">{{ house.location }}</div>
+                            <div class="property-details">
+                                <div class="property-detail-item">
+                                    <span>Type:</span> {{ house.type }}
+                                </div>
+                                <div class="property-detail-item">
+                                    <span>Area:</span> {{ house.area }}
+                                </div>
+                                <div class="property-detail-item">
+                                    <span>Distance:</span> {{ house.distance }}
+                                </div>
+                            </div>
+                            <div class="property-features">
+                                <div>Some Features:</div>
+                                <div>{{ house.features }}</div>
+                            </div>
+                        </div>
+                        <div class="property-price">
+                            <div class="price-label">Price:</div>
+                            <div class="price-value">{{ house.rent }} HKD</div>
+                        </div>
+                    </div>
+                </a>
+            {% endfor %}
+        {% else %}
+            <div style="text-align: center; padding: 30px;">
+                No properties found matching your criteria.
+            </div>
+        {% endif %}
+        
+        <div class="pagination">
+            Showing 1 to {{ showing_count }} of {{ total_count }} property(s) ({{ page_count }} Pages)
+        </div>
+        
+        <div class="footer">
+            <div>Useful Information:</div>
+            <div class="footer-links">
+                <a href="#" class="footer-link">Terms and Conditions and Declaration</a>
+                <span>|</span>
+                <a href="#" class="footer-link">Privacy Policy</a>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function toggleDateInput(checkboxId, inputId) {
+            const checkbox = document.getElementById(checkboxId);
+            const input = document.getElementById(inputId);
+            input.disabled = !checkbox.checked;
+            if (!checkbox.checked) {
+                input.value = '';
+            }
+        }
+        
+        document.getElementById('reset-btn').addEventListener('click', function() {
+            window.location.href = window.location.pathname;
+        });
+    </script>
+</body>
+</html>

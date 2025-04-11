@@ -1,7 +1,8 @@
 from django.contrib.auth import authenticate, login as auth_login
-from django.contrib.auth.decorators import login_required, permission_required
 from django.http import JsonResponse, HttpResponse
 from rest_framework.generics import GenericAPIView
+from django.shortcuts import render
+from django.db.models import Q
 from typing import override
 
 from Accommodation.serializers import *
@@ -27,36 +28,130 @@ def login(request):
     
 class HouseListView(GenericAPIView):
     serializer_class = HouseSerializer
+    template_name = 'Accommodation/list.html'
     
     @override
     def get_queryset(self):
         """
         Returns a queryset of House objects.
         Filters and sorts the queryset based on the provided parameters.
-        If no parameters are provided, returns all House objects.
         """
         queryset = House.objects.all()
-        filter = self.request.query_params.get('filter_by')
-        sort = self.request.query_params.get('order_by')
-        if filter:
-            queryset = queryset.filter(name__contains=filter)
+        
+        filter_type = self.request.GET.getlist('type')
+        filter_price = self.request.GET.getlist('price')
+        filter_bedrooms = self.request.GET.getlist('bedrooms')
+        filter_beds = self.request.GET.getlist('beds')
+        filter_location = self.request.GET.getlist('location')
+        filter_available_from = self.request.GET.get('begin_date')
+        filter_available_to = self.request.GET.get('end_date')
+        sort = self.request.GET.get('order_by')
+        
+        if filter_type:
+            queryset = queryset.filter(type__in=filter_type)
+            
+        if filter_price:
+            price_filters = []
+            for price_range in filter_price:
+                if price_range == '<5000':
+                    price_filters.append(Q(rent__lt=5000))
+                elif price_range == '5000-10000':
+                    price_filters.append(Q(rent__gte=5000) & Q(rent__lte=10000))
+                elif price_range == '>10000':
+                    price_filters.append(Q(rent__gt=10000))
+            
+            if price_filters:
+                combined_filter = price_filters[0]
+                for f in price_filters[1:]:
+                    combined_filter |= f
+                queryset = queryset.filter(combined_filter)
+                
+        if filter_bedrooms:
+            bedroom_filters = []
+            for bedroom_count in filter_bedrooms:
+                if bedroom_count in ['1', '2', '3']:
+                    bedroom_filters.append(Q(bedrooms=int(bedroom_count)))
+                elif bedroom_count == '>3':
+                    bedroom_filters.append(Q(bedrooms__gt=3))
+            
+            if bedroom_filters:
+                combined_filter = bedroom_filters[0]
+                for f in bedroom_filters[1:]:
+                    combined_filter |= f
+                queryset = queryset.filter(combined_filter)
+                
+        if filter_beds:
+            bed_filters = []
+            for bed_count in filter_beds:
+                if bed_count in ['1', '2', '3']:
+                    bed_filters.append(Q(beds=int(bed_count)))
+                elif bed_count == '>3':
+                    bed_filters.append(Q(beds__gt=3))
+            
+            if bed_filters:
+                combined_filter = bed_filters[0]
+                for f in bed_filters[1:]:
+                    combined_filter |= f 
+                queryset = queryset.filter(combined_filter)
+                
+        if filter_location:
+            queryset = queryset.filter(location__in=filter_location)
+            
+        if filter_available_from:
+            queryset = queryset.filter(available_from__lte=filter_available_from)
+            
+        if filter_available_to:
+            queryset = queryset.filter(available_to__gte=filter_available_to)
+            
         if sort:
             queryset = queryset.order_by(sort)
             
         return queryset
 
-    @login_required
-    def get(self,request):
+    def get(self, request):
         """
-        Handles GET requests to retrieve House objects.
+        Handles GET requests to retrieve House objects and render the list template.
+        If 'format=json' is specified, returns JSON data instead.
         """
+        if request.GET.get('format') == 'json':
+            print(1)
+            queryset = self.get_queryset()
+            serializer = self.serializer_class(queryset, many=True)
+            if queryset: 
+                return JsonResponse(serializer.data, safe=False, status=200)
+            else: 
+                return JsonResponse({"message": "House list not found"}, status=404)
+        
         queryset = self.get_queryset()
-        serializer = self.serializer_class(queryset, many=True)
-        if queryset: return JsonResponse(serializer.data, status=200)
-        else: return JsonResponse({"message": "House list not found"}, status=404)
+        houses = []
+        for house in queryset:
+            houses.append({
+                'id': house.id,
+                'name': house.name,
+                'type': house.type,
+                'landlord': {'name': house.landlord.name if hasattr(house, 'landlord') and house.landlord else 'Unknown'},
+                'rent': house.rent,
+                'location': house.location,
+                'beds': house.beds,
+                'bedrooms': house.bedrooms,
+                'available_from': house.available_from,
+                'available_to': house.available_to,
+                'description': house.description,
+                'area': getattr(house, 'area', 'N/A'),
+                'distance': getattr(house, 'distance', 'N/A'),
+                'features': getattr(house, 'features', 'No features listed')
+            })
+        
+        context = {
+            'houses': houses,
+            'total_count': len(houses),
+            'showing_count': len(houses),
+            'page_count': 1
+        }
+        
+        return render(request, self.template_name, context)
 
-    @permission_required('Accommodation.add_house', raise_exception=True)
-    def post(self,request):
+    def post(self, request):
         """
         Handles POST requests to create a new House object.
         """
@@ -65,36 +160,46 @@ class HouseListView(GenericAPIView):
             serializer.save()
             return JsonResponse(serializer.data, status=201)
         return JsonResponse(serializer.errors, status=400)
-    
+
 class HouseView(GenericAPIView):
     serializer_class = HouseSerializer
-    
+    template_name = 'Accommodation/detail.html'
+
     @override
-    def get_queryset(self):
+    def get_queryset(self,house_id):
         """
         Returns a queryset of House objects filtered by house_id.
         """
-        house_id = self.request.query_params.get('house_id')
         return House.objects.filter(id=house_id)
 
-    @login_required
-    def get(self,request):
+    def get(self,request,house_id):
         """
         Handles GET requests to retrieve a specific House object by house_id.
         """
-        queryset = self.get_queryset()
-        serializer = self.serializer_class(queryset, many=True)
-        if queryset: return JsonResponse(serializer.data)
-        return JsonResponse({"message": "House not found"}, status=404)
+        try:
+            house=House.objects.get(id=house_id)
+            context = {
+                'house': house,
+            }
+            #if request.GET.get('format') == 'json':
+            queryset=self.get_queryset(house_id)
+            serializer = self.serializer_class(queryset, many=True)
+            return JsonResponse(serializer.data,safe=False,status=200)
+            #else:
+            #    return render(request, self.template_name, context)
+        except House.DoesNotExist:
+            return JsonResponse({"message": "House not found"}, status=404)
 
-    @permission_required('Accommodation.change_house', raise_exception=True)
-    def post(self,request):
+    def post(self,request,house_id):
         """
         Handles POST requests to update a specific House object by house_id.
         """
-        queryset = self.get_queryset()
-        serializer = self.serializer_class(queryset, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return JsonResponse(serializer.data, status=200)
-        return JsonResponse(serializer.errors, status=400)
+        try:
+            house = House.objects.get(id=house_id)
+            serializer = self.serializer_class(house, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return JsonResponse(serializer.data, status=200)
+            return JsonResponse(serializer.errors, status=400)
+        except House.DoesNotExist:
+            return JsonResponse({"message": "House not found"}, status=404)

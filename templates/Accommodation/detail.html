@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CEDARS - Accommodation Service - Property Details</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f8f8;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 15px;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+        }
+        
+        .logo-container {
+            display: flex;
+            align-items: center;
+        }
+        
+        .logo-container img {
+            max-height: 60px;
+        }
+        
+        .service-title {
+            text-align: right;
+        }
+        
+        .service-title h1 {
+            font-size: 28px;
+            margin: 0;
+            color: #666;
+            font-weight: normal;
+        }
+        
+        .welcome-text {
+            text-align: right;
+            margin-top: 5px;
+            font-size: 14px;
+        }
+        
+        .footer-link {
+            color: #0066cc;
+            text-decoration: none;
+            margin-right: 15px;
+        }
+        
+        .footer-link:hover {
+            text-decoration: underline;
+        }
+        
+        .content-wrapper {
+            display: flex;
+            justify-content: space-between;
+            margin: 30px 0;
+        }
+        
+        .left-column {
+            width: 48%;
+        }
+        
+        .right-column {
+            width: 48%;
+        }
+        
+        .info-box {
+            border: 1px dotted #ccc;
+            background-color: #fff;
+            margin-bottom: 20px;
+        }
+        
+        .property-header {
+            padding: 20px;
+        }
+        
+        .property-header h2 {
+            margin: 0 0 5px 0;
+        }
+        
+        .property-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .property-table tr {
+            border-bottom: 1px dotted #ccc;
+        }
+        
+        .property-table tr:last-child {
+            border-bottom: none;
+        }
+        
+        .property-table td {
+            padding: 15px;
+        }
+        
+        .property-table td:first-child {
+            width: 50%;
+            font-weight: bold;
+        }
+        
+        .map-placeholder, .image-placeholder {
+            height: 270px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #888;
+        }
+        
+        .reserve-button {
+            padding: 10px 20px;
+            background-color: white;
+            border: 1px solid #333;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 20px 0;
+        }
+        
+        .reserve-button:hover {
+            background-color: #f0f0f0;
+        }
+        
+        .footer {
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            font-size: 14px;
+            margin-bottom: 30px;
+        }
+        
+        .footer-links {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="service-title">
+                <h1>Accommodation Service</h1>
+                <div class="welcome-text">
+                    Welcome: To be implemented • <a href="#" class="footer-link">Logout</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="content-wrapper">
+            <div class="left-column">
+                <div class="info-box">
+                    <div class="property-header">
+                        <h2># {{ house.id|default:"N/AXX" }}</h2>
+                        <h2>{{ house.location|default:"Location" }}</h2>
+                        <p><strong>Description:</strong> {{ house.description|default:"" }}</p>
+                    </div>
+                </div>
+                
+                <div class="info-box">
+                    <table class="property-table">
+                        <tr>
+                            <td>Accommodation Type</td>
+                            <td>{{ house.type|default:"N/A" }}</td>
+                        </tr>
+                        <tr>
+                            <td>Number of Beds</td>
+                            <td>{{ house.beds|default:"N/A" }}</td>
+                        </tr>
+                        <tr>
+                            <td>Number of Bedrooms</td>
+                            <td>{{ house.bedrooms|default:"N/A" }}</td>
+                        </tr>
+                        <tr>
+                            <td>Availability Period</td>
+                            <td>{{ house.availability|default:"N/A" }}</td>
+                        </tr>
+                        <tr>
+                            <td>Price</td>
+                            <td>{{ house.rent|default:"N/A" }}</td>
+                        </tr>
+                    </table>
+                </div>
+                
+                <!-- Reserve button (functionality to be added later) -->
+                <button class="reserve-button">Reserve</button>
+            </div>
+            
+            <div class="right-column">
+                <!-- Map placeholder -->
+                <div class="info-box">
+                    <div class="map-placeholder">MAP</div>
+                </div>
+                
+                <!-- Image placeholder -->
+                <div class="info-box">
+                    <div class="image-placeholder">IMAGE</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <div>Useful Information:</div>
+            <div class="footer-links">
+                <a href="#" class="footer-link">Terms and Conditions and Declaration</a>
+                <span>|</span>
+                <a href="#" class="footer-link">Privacy Policy</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -5,5 +5,5 @@ urlpatterns = [
     path('',views.index),
     path('login/', views.login),
     path('list/', views.HouseListView.as_view()),
-    path('house/<int:house_id>/', views.HouseView.as_view()),
+    path('house/<int:house_id>/', views.HouseView.as_view(),name="property_detail"),
 ]
