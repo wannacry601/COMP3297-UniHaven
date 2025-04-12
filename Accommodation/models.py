@@ -1,3 +1,4 @@
+from datetime import datetime
 from tkinter.constants import CASCADE
 
 from django.db import models
@@ -53,7 +54,7 @@ class House(models.Model):
                                 },
                                 params={
                                     "q": self.name,
-                                    "t": 60
+                                    "t": 60,
                                 })
         latitude = response.json()["SuggestedAddress"][0]["Address"]["PremisesAddress"]["GeospatialInformation"]["Latitude"]
         longitude = response.json()["SuggestedAddress"][0]["Address"]["PremisesAddress"]["GeospatialInformation"]["Longitude"]
@@ -95,6 +96,7 @@ class Reservation(models.Model):
     choices = (
         ('Pending', 'Pending'),
         ('Confirmed', 'Confirmed'),
+        ('Cancelled', 'Cancelled')
     )
     status = models.CharField(max_length=100, choices=choices) # Status of the reservation
     period_from = models.DateField() # Reservation period
@@ -102,7 +104,13 @@ class Reservation(models.Model):
     student = models.ForeignKey(Student, on_delete=models.CASCADE) # Student who made the reservation
     manager = models.ForeignKey(Specialist, on_delete=models.CASCADE) # Specialist who managed the reservation
     house_id = models.ForeignKey(House, on_delete=models.CASCADE) # House being reserved
-    
+    create_date = models.DateTimeField(default='1970-01-01')
+
+    def save(self, *args, **kwargs):
+        if not self.pk:
+            self.create_date = datetime.now()
+        super(Reservation, self).save(*args, **kwargs)
+
     def __str__(self):
         return f"Reservation by {self.student.name} for {self.house_id.name} from {self.period_from} to {self.period_to}.\nSpecialist manager: {self.manager.name}"
 
