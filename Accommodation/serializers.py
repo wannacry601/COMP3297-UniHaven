@@ -20,3 +20,8 @@ class SpecialistSerializer(serializers.ModelSerializer):
     class Meta:
         model = Specialist
         fields = '__all__'
+        
+class ReservationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Reservation
+        fields = '__all__'

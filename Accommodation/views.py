@@ -102,7 +102,7 @@ class HouseListView(GenericAPIView):
             
         if filter_available_to:
             queryset = queryset.filter(available_to__gte=filter_available_to)
-            
+
         if sort:
             queryset = queryset.order_by(sort)
             
@@ -131,7 +131,7 @@ class HouseListView(GenericAPIView):
                 'type': house.type,
                 'landlord': {'name': house.landlord.name if hasattr(house, 'landlord') and house.landlord else 'Unknown'},
                 'rent': house.rent,
-                'location': house.location,
+                'location': (house.latitude, house.longitude),
                 'beds': house.beds,
                 'bedrooms': house.bedrooms,
                 'available_from': house.available_from,
@@ -203,3 +203,94 @@ class HouseView(GenericAPIView):
             return JsonResponse(serializer.errors, status=400)
         except House.DoesNotExist:
             return JsonResponse({"message": "House not found"}, status=404)
+        
+class ReservationView(GenericAPIView):
+    serializer_class = ReservationSerializer
+    
+    @override
+    def get_queryset(self, **kwargs):
+        queryset = Reservation.objects.all()
+        for key, value in kwargs.items():
+            queryset = queryset.filter(**{key: value})
+        return queryset
+
+    def get(self, request):
+        """
+        Handles GET requests to retrieve Reservation objects.
+        For students only.
+        Accept parameters:
+        - id: student_id
+        """
+        student_id = request.data["id"]
+        queryset = self.get_queryset(student=student_id)
+        serializer = self.serializer_class(queryset, many=True)
+        if queryset:
+            return JsonResponse(serializer.data, safe=False, status=200)
+        else:
+            return JsonResponse({"message": "Reservation list not found"}, status=404)
+        
+    def post(self, request):
+        """
+        Handles POST requests to create a new Reservation object.
+        For students and specialists.
+        Accept parameters:
+        - identity: "student" or "specialist" (mandatory)
+        - id: student_id or specialist_id (mandatory)
+        - action: "create" or "cancel" for students, "confirm" or "cancel" for specialists (mandatory)
+        - reservation_id: reservation_id (optional, when identity is "specialist")
+        - manager: manager_id (optional, when identity is "student" and action is "create", to be specified by the frontend, not the student.)
+        - house_id: house_id (optional, when identity is "student" and action is "create")
+        - period_from: begin_date (optional, when identity is "student" and action is "create")
+        - period_to: end_date (optional, when identity is "student" and action is "create")
+        """
+        import json
+        postData = json.loads(json.dumps(request.POST.dict()))
+        if postData["identity"] == "student":
+            if postData["action"] == "create":
+                if not (postData["house_id"] and postData["period_from"] and postData["period_to"]):
+                    return JsonResponse({"message": "Missing required fields"}, status=400)
+                postData["status"] = "Pending"
+                postData["student"] = postData["id"]
+                postData.pop("id")
+                postData.pop("identity")
+                postData.pop("action")
+                serializer = self.serializer_class(data=postData, partial=True)
+                if serializer.is_valid():
+                    serializer.save()
+                    return JsonResponse(serializer.data, status=201)
+                return JsonResponse(serializer.errors, status=400)
+            elif postData["action"] == "cancel":
+                reservation = Reservation.objects.get(student=postData["id"])
+                if reservation:
+                    if reservation.status == "Confirmed":
+                        return JsonResponse({"message": "Reservation is confirmed. Therefore you can't delete it."}, status=400)
+                    reservation.delete()
+                    return JsonResponse({"message": "Reservation cancelled"}, status=200)
+                else:
+                    return JsonResponse({"message": "Reservation not found"}, status=404)
+            else:
+                return JsonResponse({"message": "Invalid action"}, status=400)
+            
+        elif postData["identity"] == "specialist":
+            reservation = Reservation.objects.get(id=postData["reservation_id"])
+            if not reservation:
+                return JsonResponse({"message": "Reservation not found."}, status=404)
+            if reservation.manager != postData["id"]:
+                return JsonResponse({"message": "Only the assigned specialist can modify this reservation."}, status=400)
+
+            if postData["action"] == "cancel":
+                if reservation.status == "Confirmed":
+                    return JsonResponse({"message": "Reservation is confirmed. Therefore you can't delete it."}, status=400)
+                reservation.delete()
+                return JsonResponse({"message": "Reservation cancelled"}, status=200)
+                
+            elif postData["action"] == "confirm":
+                if reservation.status == "Pending":
+                    reservation.status = "Confirmed"
+                    reservation.save()
+                else:
+                    return JsonResponse({"message": "Reservation is already confirmed"}, status=400)
+                return JsonResponse({"message": "Reservation confirmed"}, status=200)
+        
+        else:
+            return JsonResponse({"message": "Invalid identity", "identity": postData["identity"], "original post": request.data}, status=400)
