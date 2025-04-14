@@ -1,6 +1,6 @@
 from datetime import datetime
 from tkinter.constants import CASCADE
-
+from django.utils import timezone
 from django.db import models
 # Create your models here.
 class Landlord(models.Model):
@@ -104,7 +104,7 @@ class Reservation(models.Model):
     student = models.ForeignKey(Student, on_delete=models.CASCADE) # Student who made the reservation
     manager = models.ForeignKey(Specialist, on_delete=models.CASCADE) # Specialist who managed the reservation
     house_id = models.ForeignKey(House, on_delete=models.CASCADE) # House being reserved
-    create_date = models.DateTimeField(default='1970-01-01')
+    create_date = models.DateTimeField(default=timezone.now)
 
     def save(self, *args, **kwargs):
         if not self.pk:
@@ -118,3 +118,27 @@ class Rating(models.Model):
     score = models.DecimalField(max_digits=2,decimal_places=1,default=0.0)
     comment = models.TextField()
     house = models.ForeignKey(House, on_delete=models.CASCADE)
+    student = models.ForeignKey(Student, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    def __str__(self):
+        return f"Rating {self.score}/5.0 for {self.house.name} by {self.student.name}"
+
+class Notification(models.Model):
+    TYPE_CHOICES = (
+        ('created', 'New Reservation'),
+        ('cancelled', 'Cancel Reservation'),
+    )
+    
+    specialist = models.ForeignKey(Specialist, on_delete=models.CASCADE, related_name='notifications')
+    reservation = models.ForeignKey(Reservation, on_delete=models.CASCADE)
+    notification_type = models.CharField(max_length=20, choices=TYPE_CHOICES)
+    message = models.TextField()
+    created_at = models.DateTimeField(default=timezone.now)
+    is_read = models.BooleanField(default=False)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.get_notification_type_display()} - {self.reservation.house_id.name}"

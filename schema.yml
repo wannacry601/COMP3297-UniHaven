@@ -1,0 +1,378 @@
+openapi: 3.0.3
+info:
+  title: UniHaven - An API that better help students arrange accommodations!
+  version: 0.0.0
+  description: Hello world
+paths:
+  /api/house/{house_id}/:
+    get:
+      operationId: house_retrieve
+      description: Handles GET requests to retrieve a specific House object by house_id.
+      parameters:
+      - in: path
+        name: house_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - house
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/House'
+          description: ''
+    post:
+      operationId: house_create
+      description: Handles POST requests to update a specific House object by house_id.
+      parameters:
+      - in: path
+        name: house_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - house
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/House'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/House'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/House'
+        required: true
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/House'
+          description: ''
+  /api/list/:
+    get:
+      operationId: list_retrieve
+      description: |-
+        Handles GET requests to retrieve House objects and render the list template.
+        If 'format=json' is specified, returns JSON data instead.
+      tags:
+      - list
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/House'
+          description: ''
+    post:
+      operationId: list_create
+      description: Handles POST requests to create a new House object.
+      tags:
+      - list
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/House'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/House'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/House'
+        required: true
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/House'
+          description: ''
+  /api/ratings/:
+    get:
+      operationId: ratings_retrieve
+      description: |-
+        Get a list of ratings for a house
+
+        Required parameters:
+        - house_id: House ID
+      tags:
+      - ratings
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Rating'
+          description: ''
+    post:
+      operationId: ratings_create
+      description: |-
+        Add a rating for a house
+
+        Required parameters:
+        - house_id: House ID
+        - student_id: Student ID
+        - score: Rating (0.0-5.0)
+        - comment: Review text
+      tags:
+      - ratings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Rating'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Rating'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Rating'
+        required: true
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Rating'
+          description: ''
+  /api/reservation/:
+    get:
+      operationId: reservation_retrieve
+      description: |-
+        Handles GET requests to retrieve Reservation objects.
+        For students, this returns all his/her history reservations.
+        For specialists, this returns all reservations he/she manages.
+        Accept parameters:
+        - identity: "student" or "specialist" (mandatory)
+        - id: student_id or specialist_id (mandatory)
+      tags:
+      - reservation
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reservation'
+          description: ''
+    post:
+      operationId: reservation_create
+      description: |-
+        Handles POST requests to create a new Reservation object.
+        For students and specialists.
+        Accept parameters:
+        - identity: "student" or "specialist" (mandatory)
+        - id: student_id or specialist_id (mandatory)
+        - action: "create" or "cancel" for students, "confirm" or "cancel" for specialists (mandatory)
+        - reservation_id: reservation_id (optional, when identity is "specialist")
+        - manager: manager_id (optional, when identity is "student" and action is "create", to be specified by the frontend, not the student.)
+        - house_id: house_id (optional, when identity is "student" and action is "create")
+        - period_from: begin_date (optional, when identity is "student" and action is "create")
+        - period_to: end_date (optional, when identity is "student" and action is "create")
+      tags:
+      - reservation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Reservation'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Reservation'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Reservation'
+        required: true
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reservation'
+          description: ''
+components:
+  schemas:
+    House:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        type:
+          type: string
+          maxLength: 100
+        rent:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+        beds:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        bedrooms:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        available_from:
+          type: string
+          format: date
+        available_to:
+          type: string
+          format: date
+        description:
+          type: string
+        MC:
+          type: number
+          format: double
+        SRC:
+          type: number
+          format: double
+        SIMS:
+          type: number
+          format: double
+        KC:
+          type: number
+          format: double
+        FoD:
+          type: number
+          format: double
+        landlord:
+          type: integer
+      required:
+      - available_from
+      - available_to
+      - bedrooms
+      - beds
+      - description
+      - id
+      - landlord
+      - name
+      - rent
+      - type
+    Rating:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,1}(?:\.\d{0,1})?$
+        comment:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        house:
+          type: integer
+        student:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+      required:
+      - comment
+      - house
+      - id
+      - student
+    Reservation:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        status:
+          $ref: '#/components/schemas/StatusEnum'
+        period_from:
+          type: string
+          format: date
+        period_to:
+          type: string
+          format: date
+        create_date:
+          type: string
+          format: date-time
+        student:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        manager:
+          type: integer
+        house_id:
+          type: integer
+      required:
+      - house_id
+      - id
+      - manager
+      - period_from
+      - period_to
+      - status
+      - student
+    StatusEnum:
+      enum:
+      - Pending
+      - Confirmed
+      - Cancelled
+      type: string
+      description: |-
+        * `Pending` - Pending
+        * `Confirmed` - Confirmed
+        * `Cancelled` - Cancelled
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid

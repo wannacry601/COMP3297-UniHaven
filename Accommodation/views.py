@@ -252,9 +252,10 @@ class ReservationView(GenericAPIView):
         reservation = None
         if Reservation.objects.filter(student=postData["id"]):
             reservation = Reservation.objects.filter(student=postData["id"]).latest('create_date')
+        """
         if not reservation:
             return JsonResponse({"message": "Reservation not found."}, status=404)
-
+        """
         if postData["identity"] == "student":
             if postData["action"] == "create":
                 if reservation and reservation.status != 'Cancelled':
@@ -268,17 +269,30 @@ class ReservationView(GenericAPIView):
                 postData.pop("action")
                 serializer = self.serializer_class(data=postData, partial=True)
                 if serializer.is_valid():
-                    serializer.save()
+                    new_reservation = serializer.save()
+                    try:
+                        from Accommodation.services import EmailNotificationService
+                        EmailNotificationService.notify_specialist_reservation_created(new_reservation)
+                    except Exception as e:
+                        print(f"Error sending notification email: {str(e)}")
+                    
                     return JsonResponse(serializer.data, status=201)
                 return JsonResponse(serializer.errors, status=400)
 
             elif postData["action"] == "cancel":
+                if not reservation:
+                    return JsonResponse({"message": "Reservation not found."}, status=404)
                 if reservation.status == "Confirmed":
                     return JsonResponse({"message": "Reservation is confirmed. Therefore you can't delete it."}, status=400)
                 if reservation.status == 'Cancelled':
                     return JsonResponse({"message": "Reservation is already cancelled."}, status=400)
                 reservation.status = 'Cancelled'
                 reservation.save()
+                try:
+                    from Accommodation.services import EmailNotificationService
+                    EmailNotificationService.notify_specialist_reservation_cancelled(reservation)
+                except Exception as e:
+                    print(f"Error sending cancellation email: {str(e)}")
                 return JsonResponse({"message": "Reservation cancelled"}, status=200)
             else:
                 return JsonResponse({"message": "Invalid action"}, status=400)
@@ -300,14 +314,107 @@ class ReservationView(GenericAPIView):
                     return JsonResponse({"message": "Reservation is already cancelled."}, status=400)
                 reservation.status = 'Cancelled'
                 reservation.save()
+                try:
+                    from Accommodation.services import EmailNotificationService
+                    EmailNotificationService.notify_student_reservation_cancelled(reservation)
+                except Exception as e:
+                    print(f"Error sending cancellation email to student: {str(e)}")
                 return JsonResponse({"message": "Reservation cancelled"}, status=200)
                 
             elif postData["action"] == "confirm":
                 if reservation.status == "Pending":
                     reservation.status = "Confirmed"
                     reservation.save()
+                    try:
+                        from Accommodation.services import EmailNotificationService
+                        EmailNotificationService.notify_student_reservation_confirmed(reservation)
+                    except Exception as e:
+                        print(f"Error sending confirmation email to student: {str(e)}")
                     return JsonResponse({"message": "Reservation confirmed"}, status=200)
                 else:
                     return JsonResponse({"message": "Reservation is not available. It's already confirmed or has been cancelled."}, status=400)
         else:
             return JsonResponse({"message": "Invalid identity", "identity": postData["identity"], "original post": request.data}, status=400)
+
+class RatingView(GenericAPIView):
+    serializer_class = RatingSerializer
+    
+    def get(self, request):
+        """
+        Get a list of ratings for a house
+        
+        Required parameters:
+        - house_id: House ID
+        """
+        house_id = request.GET.get('house_id')
+        
+        if not house_id:
+            return JsonResponse({"message": "House ID is required"}, status=400)
+            
+        try:
+            house = House.objects.get(id=house_id)
+            ratings = Rating.objects.filter(house=house)
+            
+            serializer = self.serializer_class(ratings, many=True)
+            return JsonResponse(serializer.data, safe=False, status=200)
+            
+        except House.DoesNotExist:
+            return JsonResponse({"message": "House not found"}, status=404)
+    
+    def post(self, request):
+        """
+        Add a rating for a house
+        
+        Required parameters:
+        - house_id: House ID
+        - student_id: Student ID
+        - score: Rating (0.0-5.0)
+        - comment: Review text
+        """
+        import json
+        postData = json.loads(json.dumps(request.POST.dict()))
+        
+        house_id = postData.get('house_id')
+        student_id = postData.get('student_id')
+        score = postData.get('score')
+        comment = postData.get('comment')
+        
+        if not all([house_id, student_id, score, comment]):
+            return JsonResponse({"message": "All fields are required"}, status=400)
+            
+        try:
+            house = House.objects.get(id=house_id)
+            student = Student.objects.get(student_id=student_id)
+            
+            # Check if the student has a confirmed reservation for this house that has ended
+            reservations = Reservation.objects.filter(
+                student=student,
+                house_id=house,
+                status='Confirmed',
+                period_to__lt=datetime.now().date()
+            )
+            
+            if not reservations.exists():
+                return JsonResponse({"message": "Only students with completed contracts can rate houses"}, status=400)
+            
+            # Check if the student has already rated this house
+            if Rating.objects.filter(house=house, student=student).exists():
+                return JsonResponse({"message": "You have already rated this house"}, status=400)
+                
+            # Create rating
+            rating = Rating.objects.create(
+                house=house,
+                student=student,
+                score=float(score),
+                comment=comment
+            )
+            
+            serializer = self.serializer_class(rating)
+            return JsonResponse(serializer.data, status=201)
+            
+        except House.DoesNotExist:
+            return JsonResponse({"message": "House not found"}, status=404)
+        except Student.DoesNotExist:
+            return JsonResponse({"message": "Student not found"}, status=404)
+        except ValueError:
+            return JsonResponse({"message": "Score must be a valid number"}, status=400)
