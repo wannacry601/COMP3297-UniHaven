@@ -1,13 +1,20 @@
 openapi: 3.0.3
 info:
   title: UniHaven - An API that better help students arrange accommodations!
-  version: 0.0.0
-  description: Hello world
+  version: 1.0.0
+
+tags:
+  - name: House
+    description: All details of a specific house.
+  - name: House List
+    description: List of the houses available in the system.
+  - name: Reservation
+    description: Reservations made by students and managed by specialists.
 paths:
   /api/house/{house_id}/:
     get:
       operationId: house_retrieve
-      description: Handles GET requests to retrieve a specific House object by house_id.
+      summary: Return all the information of a specific house.
       parameters:
       - in: path
         name: house_id
@@ -15,7 +22,7 @@ paths:
           type: integer
         required: true
       tags:
-      - house
+      - House
       security:
       - cookieAuth: []
       - basicAuth: []
@@ -26,10 +33,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/House'
-          description: ''
+          description: 'Return the full details of the house.'
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+          description: 'Return the error message when the house is not found.'
     post:
       operationId: house_create
-      description: Handles POST requests to update a specific House object by house_id.
+      summary: Update a specific existing House object.
       parameters:
       - in: path
         name: house_id
@@ -37,7 +53,7 @@ paths:
           type: integer
         required: true
       tags:
-      - house
+      - House
       requestBody:
         content:
           application/json:
@@ -60,15 +76,92 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/House'
-          description: ''
+          description: 'Return the updated house object.'
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+          description: 'Return the error message when the house is not found.'
   /api/list/:
     get:
       operationId: list_retrieve
-      description: |-
-        Handles GET requests to retrieve House objects and render the list template.
-        If 'format=json' is specified, returns JSON data instead.
+      summary: "Show a filtered and sorted list of houses."
+      parameters:
+        - in: query
+          name: "name"
+          schema:
+            type: string
+            maxLength: 100
+          required: false
+          description: "Name of the house/building."
+        - in: query
+          name: "type"
+          schema:
+            type: string
+            maxLength: 100
+          required: false
+          description: "Type of the house/building."
+        - in: query
+          name: "rent"
+          schema:
+            type: string
+            enum:
+              - "<5000"
+              - "5000-10000"
+              - ">10000"
+          required: false
+          description: 'Rent per month.'
+        - in: query
+          name: "beds"
+          schema:
+            type: integer
+            maximum: 10
+            minimum: 0
+          required: false
+          description: "Request values over 3 will be filtered to the same class."
+        - in: query
+          name: "bedrooms"
+          schema:
+            type: integer
+            maximum: 10
+            minimum: 0
+          required: false
+          description: "Request values over 3 will be filtered to the same class."
+        - in: query
+          name: "available_from"
+          schema:
+            type: string
+            format: date
+          required: false
+        - in: query
+          name: "available_to"
+          schema:
+            type: string
+            format: date
+          required: false
+        - in: query
+          name: "sort"
+          schema:
+            type: string
+            enum:
+              - "type"
+              - "rent"
+              - "beds"
+              - "bedrooms"
+              - "available_from"
+              - "available_to"
+              - "MC"
+              - "SRC"
+              - "SIMS"
+              - "KC"
+              - "FoD"
+          required: false
       tags:
-      - list
+      - House List
       security:
       - cookieAuth: []
       - basicAuth: []
@@ -78,13 +171,23 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/House'
+                
           description: ''
-    post:
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+          description: 'Return the error message when no house meets the constraint.'
+
+    put:
       operationId: list_create
-      description: Handles POST requests to create a new House object.
+      summary: Create a new house object.
       tags:
-      - list
+      - House List
       requestBody:
         content:
           application/json:
@@ -102,16 +205,25 @@ paths:
       - basicAuth: []
       - {}
       responses:
-        '200':
+        '201':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/House'
-          description: ''
+          description: 'Return the details of the new house, including the auto-generated information.'
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+          description: 'Return the error message when the new house can not be uploaded.'
   /api/ratings/:
     get:
       operationId: ratings_retrieve
-      description: |-
+      summary: |-
         Get a list of ratings for a house
 
         Required parameters:
@@ -131,7 +243,7 @@ paths:
           description: ''
     post:
       operationId: ratings_create
-      description: |-
+      summary: |-
         Add a rating for a house
 
         Required parameters:
@@ -166,43 +278,52 @@ paths:
           description: ''
   /api/reservation/:
     get:
-      operationId: reservation_retrieve
-      description: |-
-        Handles GET requests to retrieve Reservation objects.
-        For students, this returns all his/her history reservations.
-        For specialists, this returns all reservations he/she manages.
-        Accept parameters:
-        - identity: "student" or "specialist" (mandatory)
-        - id: student_id or specialist_id (mandatory)
+      operationId: api_reservation_retrieve
+      summary:
+        "For students, this returns all his/her history reservations.\n\n
+        For specialists, this returns all reservations he/she manages."
       tags:
-      - reservation
+      - Reservation
       security:
       - cookieAuth: []
       - basicAuth: []
       - {}
+      parameters:
+        - in: query
+          name: "identity"
+          schema:
+            type: string
+            enum:
+            - "student"
+            - "specialist"
+        - in: query
+          name: "id"
+          schema:
+            type: integer
+            format: int64
+          description: 'UID of the student/specialist.'
       responses:
         '200':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Reservation'
-          description: ''
+          description: 'Return all history reservations made/managed by the student/specialist.'
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+          description: 'Return the error message when no reservation is found.'
     post:
-      operationId: reservation_create
-      description: |-
-        Handles POST requests to create a new Reservation object.
-        For students and specialists.
-        Accept parameters:
-        - identity: "student" or "specialist" (mandatory)
-        - id: student_id or specialist_id (mandatory)
-        - action: "create" or "cancel" for students, "confirm" or "cancel" for specialists (mandatory)
-        - reservation_id: reservation_id (optional, when identity is "specialist")
-        - manager: manager_id (optional, when identity is "student" and action is "create", to be specified by the frontend, not the student.)
-        - house_id: house_id (optional, when identity is "student" and action is "create")
-        - period_from: begin_date (optional, when identity is "student" and action is "create")
-        - period_to: end_date (optional, when identity is "student" and action is "create")
+      operationId: api_reservation_create
+      summary: |-
+        Update the existing reservation for students or specialists.
       tags:
-      - reservation
+      - Reservation
       requestBody:
         content:
           application/json:
@@ -219,13 +340,117 @@ paths:
       - cookieAuth: []
       - basicAuth: []
       - {}
+      parameters:
+        - in: query
+          name: "identity"
+          schema:
+            type: string
+            enum:
+            - "student"
+            - "specialist"
+        - in: query
+          name: "id"
+          schema:
+            type: integer
+            format: int64
+        - in: query
+          name: "action"
+          schema:
+            type: string
+            enum:
+              - "confirm"
+              - "cancel"
+          description: "WARNING: 'confirm' is ONLY available to specialists."
       responses:
         '200':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Reservation'
-          description: ''
+          description: 'Return the updated reservation.'
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+          description: 'Return the error in updating the reservation.'
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+          description: 'Return the error message when the reservation does not exist.'
+    put:
+      operationId: api_reservation_update
+      summary: 
+        Create a new reservation.
+      tags:
+      -  Reservation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Reservation'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Reservation'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Reservation'
+        required: true
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      parameters:
+        - in: query
+          name: "student"
+          schema:
+            type: integer
+            format: int64
+          required: true
+          description: "UID of the student."
+        - in: query
+          name: "manager"
+          schema:
+            type: integer
+            format: int32
+          required: true
+          description: "ID of the specialist to manage the reservation."
+        - in: query
+          name: "period_from"
+          schema:
+            type: string
+            format: date
+          required: true
+        - in: query
+          name: "period_to"
+          schema:
+            type: string
+            format: date
+          required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reservation'
+          description: 'Return the new reservation, including the auto-generated information.'
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+          description: 'Return the error in creating the reservation.'
 components:
   schemas:
     House:
@@ -272,18 +497,23 @@ components:
         MC:
           type: number
           format: double
+          description: "Distance to the Main Campus"
         SRC:
           type: number
           format: double
+          description: "Distance to the Seassoon Road Campus"
         SIMS:
           type: number
           format: double
+          description: "Distance to the Swire Institude of Marine Science"
         KC:
           type: number
           format: double
+          description: "Distance to Kadoorie Centre"
         FoD:
           type: number
           format: double
+          description: "Distance to the Faculty of Dentistry"
         landlord:
           type: integer
       required:

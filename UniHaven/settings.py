@@ -62,7 +62,7 @@ REST_FRAMEWORK = {
 SPECTACULAR_SETTINGS = {
     'TITLE': 'UniHaven - An API that better help students arrange accommodations!',
     'DESCRIPTION': 'Hello world',
-    'SERVE_INCLUDE_SCHEMA': False
+    'SERVE_INCLUDE_SCHEMA': True
 }
 
 ROOT_URLCONF = "UniHaven.urls"

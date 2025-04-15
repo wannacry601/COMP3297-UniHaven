@@ -93,9 +93,6 @@ class HouseListView(GenericAPIView):
                 for f in bed_filters[1:]:
                     combined_filter |= f 
                 queryset = queryset.filter(combined_filter)
-                
-        if filter_location:
-            queryset = queryset.filter(location__in=filter_location)
             
         if filter_available_from:
             queryset = queryset.filter(available_from__lte=filter_available_from)
@@ -114,7 +111,6 @@ class HouseListView(GenericAPIView):
         If 'format=json' is specified, returns JSON data instead.
         """
         if request.GET.get('format') == 'json':
-            print(1)
             queryset = self.get_queryset()
             serializer = self.serializer_class(queryset, many=True)
             if queryset: 
@@ -151,7 +147,7 @@ class HouseListView(GenericAPIView):
         
         return render(request, self.template_name, context)
 
-    def post(self, request):
+    def put(self, request):
         """
         Handles POST requests to create a new House object.
         """
@@ -241,21 +237,14 @@ class ReservationView(GenericAPIView):
         - identity: "student" or "specialist" (mandatory)
         - id: student_id or specialist_id (mandatory)
         - action: "create" or "cancel" for students, "confirm" or "cancel" for specialists (mandatory)
-        - reservation_id: reservation_id (optional, when identity is "specialist")
-        - manager: manager_id (optional, when identity is "student" and action is "create", to be specified by the frontend, not the student.)
-        - house_id: house_id (optional, when identity is "student" and action is "create")
-        - period_from: begin_date (optional, when identity is "student" and action is "create")
-        - period_to: end_date (optional, when identity is "student" and action is "create")
+
         """
         import json
         postData = json.loads(json.dumps(request.POST.dict()))
         reservation = None
         if Reservation.objects.filter(student=postData["id"]):
             reservation = Reservation.objects.filter(student=postData["id"]).latest('create_date')
-        """
-        if not reservation:
-            return JsonResponse({"message": "Reservation not found."}, status=404)
-        """
+            
         if postData["identity"] == "student":
             if postData["action"] == "create":
                 if reservation and reservation.status != 'Cancelled':
@@ -336,6 +325,37 @@ class ReservationView(GenericAPIView):
         else:
             return JsonResponse({"message": "Invalid identity", "identity": postData["identity"], "original post": request.data}, status=400)
 
+    def put(self, request):
+        """        
+        Accept parameters:
+        - student: student_id
+        - manager: manager_id (to be specified by the frontend, not the student.)
+        - house_id: house_id
+        - period_from: start date of the reservation
+        - period_to: end date of the reservation
+        """
+        import json
+        postData = json.loads(json.dumps(request.POST.dict()))
+        reservation = None
+        if Reservation.objects.filter(student=postData["student"]):
+            reservation = Reservation.objects.filter(student=postData["student"]).latest('create_date')
+        
+        if reservation and reservation.status != 'Cancelled':
+            return JsonResponse({"message": "You can only have one reservation at a time."}, status=400)
+        if not (postData["house_id"] and postData["period_from"] and postData["period_to"]):
+            return JsonResponse({"message": "Missing required fields"}, status=400)
+
+        serializer = self.serializer_class(data=postData, partial=True)
+        if serializer.is_valid():
+            new_reservation = serializer.save()
+            try:
+                from Accommodation.services import EmailNotificationService
+                EmailNotificationService.notify_specialist_reservation_created(new_reservation)
+            except Exception as e:
+                print(f"Error sending notification email: {str(e)}")        
+            return JsonResponse(serializer.data, status=201)
+        return JsonResponse(serializer.errors, status=400)
+        
 class RatingView(GenericAPIView):
     serializer_class = RatingSerializer
     
