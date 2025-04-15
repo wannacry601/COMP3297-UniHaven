@@ -4,13 +4,173 @@ info:
   version: 1.0.0
 
 tags:
+  - name: Student
+    description: All details of a participated student.
   - name: House
     description: All details of a specific house.
   - name: House List
     description: List of the houses available in the system.
   - name: Reservation
     description: Reservations made by students and managed by specialists.
+  
 paths:
+  /api/student/:
+    get:
+      operationId: student_retrieve
+      summary: Return information of the student.
+      parameters:
+        - in: query
+          name: student_id
+          schema:
+            type: integer
+            format: int64
+          required: true
+      tags: 
+        - Student
+      security:
+        - cookieAuth: []
+        - basicAuth: []
+        - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student'
+          description: 'Return the information of the student.'
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  data:
+                    type: object
+          description: "Return the error message when the student is not found."
+    post:
+      operationId: student_update
+      summary: Update the information of a specific student.
+      tags:
+        - Student
+      security:
+        - cookieAuth: []
+        - basicAuth: []
+        - {}
+      parameters:
+        - in: query
+          name: student_id
+          schema:
+            type: integer
+            format: int64
+          required: true
+        - in: query
+          name: name
+          schema:
+            type: string
+        - in: query
+          name: email
+          schema:
+            type: string
+            format: email
+        - in: query
+          name: phone_number
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student'
+          description: 'Return the updated student object.'
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                example: {
+                  "email": ["Enter a valid email address."],
+                }
+          description: 'Return the error in updating the reservation.'
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  data:
+                    type: object
+                example: {
+                  "message": "Student not found.",
+                  "data": {
+                    "student_id": 9223372036854776000,
+                    "name": "string",
+                    "email": "user@example.com",
+                    "phone_number": "string"
+                  }
+                }
+          description: 'Return the error message when the student is not found.'
+    put:
+      operationId: student_create
+      summary: Create a new student object.
+      tags:
+        - Student
+      security:
+        - cookieAuth: []
+        - basicAuth: []
+        - {}
+      parameters:
+        - in: query
+          name: student_id
+          schema:
+            type: integer
+            format: int64
+          required: true
+        - in: query
+          name: name
+          schema:
+            type: string
+          required: true
+        - in: query
+          name: email
+          schema:
+            type: string
+            format: email
+          required: true
+        - in: query
+          name: phone_number
+          schema:
+            type: string
+          required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student'
+          description: 'Return the details of the new stuent.'
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                example:
+                  {
+                    "student_id": ["This field is required."],
+                     "name": ["This field is required."],
+                      "email": ["This field is required."],
+                       "phone_number": ["This field is required."]}
+          description: 'Return the error message when the new student can not be uploaded.'
   /api/house/{house_id}/:
     get:
       operationId: house_retrieve
@@ -42,9 +202,10 @@ paths:
                 properties:
                   message:
                     type: string
+                example: {"message": "House not found", "house id": -1}
           description: 'Return the error message when the house is not found.'
     post:
-      operationId: house_create
+      operationId: house_update
       summary: Update a specific existing House object.
       parameters:
       - in: path
@@ -85,6 +246,8 @@ paths:
                 properties:
                   message:
                     type: string
+                example:
+                  {"message": "House not found"}
           description: 'Return the error message when the house is not found.'
   /api/list/:
     get:
@@ -171,6 +334,44 @@ paths:
           content:
             application/json:
               schema:
+                type: array
+                example: 
+                 - {
+                    "id": 0,
+                    "name": "George Building",
+                    "type": "Apartment",
+                    "rent": 10000,
+                    "latitude": 22.283101,
+                    "longitude": 114.136432,
+                    "beds": 2,
+                    "bedrooms": 1,
+                    "available_from": "2025-04-15",
+                    "available_to": "2026-04-15",
+                    "description": "A comfortable self-served apartment close to the main campus",
+                    "MC": 0.1124,
+                    "SRC": 0.6088,
+                    "SIMS": 9.8853,
+                    "KC": 1.7699,
+                    "FoD": 0.6252,
+                    "landlord": 0}
+                 - {
+                    "id": 1,
+                    "name": "Central House",
+                    "type": "Studio",
+                    "rent": 12000,
+                    "latitude": 22.279614, 
+                    "longitude": 114.173507,
+                    "beds": 3,
+                    "bedrooms": 3,
+                    "available_from": "2025-06-01",
+                    "available_to": "2026-08-31",
+                    "description": "A large studio available for two or three students.",
+                    "MC": 2.8485,
+                    "SRC": 3.5696,
+                    "SIMS": 6.9244,
+                    "KC": 4.7298,
+                    "FoD": 2.3357,
+                    "landlord": 1}
                 
           description: ''
         '404':
@@ -181,10 +382,14 @@ paths:
                 properties:
                   message:
                     type: string
+                example:
+                  {
+                    "message": House list not found.,
+                  }
           description: 'Return the error message when no house meets the constraint.'
 
     put:
-      operationId: list_create
+      operationId: house_create
       summary: Create a new house object.
       tags:
       - House List
@@ -220,62 +425,6 @@ paths:
                   message:
                     type: string
           description: 'Return the error message when the new house can not be uploaded.'
-  /api/ratings/:
-    get:
-      operationId: ratings_retrieve
-      summary: |-
-        Get a list of ratings for a house
-
-        Required parameters:
-        - house_id: House ID
-      tags:
-      - ratings
-      security:
-      - cookieAuth: []
-      - basicAuth: []
-      - {}
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Rating'
-          description: ''
-    post:
-      operationId: ratings_create
-      summary: |-
-        Add a rating for a house
-
-        Required parameters:
-        - house_id: House ID
-        - student_id: Student ID
-        - score: Rating (0.0-5.0)
-        - comment: Review text
-      tags:
-      - ratings
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Rating'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/Rating'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/Rating'
-        required: true
-      security:
-      - cookieAuth: []
-      - basicAuth: []
-      - {}
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Rating'
-          description: ''
   /api/reservation/:
     get:
       operationId: api_reservation_retrieve
@@ -319,7 +468,7 @@ paths:
                     type: string
           description: 'Return the error message when no reservation is found.'
     post:
-      operationId: api_reservation_create
+      operationId: reservation_update
       summary: |-
         Update the existing reservation for students or specialists.
       tags:
@@ -387,7 +536,7 @@ paths:
                     type: string
           description: 'Return the error message when the reservation does not exist.'
     put:
-      operationId: api_reservation_update
+      operationId: reservation_create
       summary: 
         Create a new reservation.
       tags:
@@ -450,6 +599,10 @@ paths:
                 properties:
                   message:
                     type: string
+                example:
+                  {
+                    "message": "Missing essential fields."
+                  }
           description: 'Return the error in creating the reservation.'
 components:
   schemas:
@@ -588,6 +741,29 @@ components:
       - period_to
       - status
       - student
+    Student:
+      type: object
+      properties:
+        student_id:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        name:
+          type: string
+          maxLength: 100
+        email:
+          type: string
+          format: email
+          maxLength: 100
+        phone_number:
+          type: string
+          maxLength: 100
+      required:
+      - email
+      - name
+      - phone_number
+      - student_id
     StatusEnum:
       enum:
       - Pending

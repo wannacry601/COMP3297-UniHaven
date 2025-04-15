@@ -125,21 +125,21 @@ class Rating(models.Model):
     def __str__(self):
         return f"Rating {self.score}/5.0 for {self.house.name} by {self.student.name}"
 
-class Notification(models.Model):
-    TYPE_CHOICES = (
-        ('created', 'New Reservation'),
-        ('cancelled', 'Cancel Reservation'),
-    )
+# class Notification(models.Model):
+#     TYPE_CHOICES = (
+#         ('created', 'New Reservation'),
+#         ('cancelled', 'Cancel Reservation'),
+#     )
     
-    specialist = models.ForeignKey(Specialist, on_delete=models.CASCADE, related_name='notifications')
-    reservation = models.ForeignKey(Reservation, on_delete=models.CASCADE)
-    notification_type = models.CharField(max_length=20, choices=TYPE_CHOICES)
-    message = models.TextField()
-    created_at = models.DateTimeField(default=timezone.now)
-    is_read = models.BooleanField(default=False)
+#     specialist = models.ForeignKey(Specialist, on_delete=models.CASCADE, related_name='notifications')
+#     reservation = models.ForeignKey(Reservation, on_delete=models.CASCADE)
+#     notification_type = models.CharField(max_length=20, choices=TYPE_CHOICES)
+#     message = models.TextField()
+#     created_at = models.DateTimeField(default=timezone.now)
+#     is_read = models.BooleanField(default=False)
     
-    class Meta:
-        ordering = ['-created_at']
+#     class Meta:
+#         ordering = ['-created_at']
     
-    def __str__(self):
-        return f"{self.get_notification_type_display()} - {self.reservation.house_id.name}"
+#     def __str__(self):
+#         return f"{self.get_notification_type_display()} - {self.reservation.house_id.name}"

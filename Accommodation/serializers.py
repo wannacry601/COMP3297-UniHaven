@@ -1,6 +1,11 @@
 from Accommodation.models import *
 from rest_framework import serializers
 
+class StudentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Student
+        fields = '__all__'
+        
 class HouseSerializer(serializers.ModelSerializer):
     class Meta:
         model = House
@@ -31,7 +36,7 @@ class RatingSerializer(serializers.ModelSerializer):
         model = Rating
         fields = '__all__'
 
-class NotificationSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Notification
-        fields = '__all__'
+# class NotificationSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Notification
+#         fields = '__all__'

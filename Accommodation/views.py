@@ -25,7 +25,49 @@ def login(request):
         else:
             return JsonResponse({"message": "Invalid credentials"}, status=401)
     return JsonResponse({"message": "Method not allowed"}, status=405)
+
+class StudentView(GenericAPIView):
+    serializer_class = StudentSerializer
     
+    @override
+    def get_queryset(self, id):
+        queryset = Student.objects.all().filter(student_id=id)
+        return queryset
+    
+    def get(self, request):
+        id = request.data["student_id"]
+        queryset = self.get_queryset(id)
+        serializer = self.serializer_class(queryset, many=True)
+        if queryset:
+            return JsonResponse(serializer.data, safe=False, status=200)
+        else:
+            return JsonResponse({"message": "Student not found", "data": request.data}, status=404)
+    
+    def put(self, request):
+        """
+        Handles PUT requests to create a new Student object.
+        """
+        serializer = self.serializer_class(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return JsonResponse(serializer.data, status=201)
+        return JsonResponse(serializer.errors, status=400)
+    
+    def post(self, request):
+        """
+        Handles POST requests to update an existing Student object.
+        """
+        student_id = request.data["student_id"]
+        try:
+            student = Student.objects.get(student_id=student_id)
+            serializer = self.serializer_class(student, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return JsonResponse(serializer.data, status=200)
+            return JsonResponse(serializer.errors, status=400)
+        except Student.DoesNotExist:
+            return JsonResponse({"message": "Student not found", "data": request.data}, status=404)
+        
 class HouseListView(GenericAPIView):
     serializer_class = HouseSerializer
     template_name = 'Accommodation/list.html'
@@ -184,7 +226,7 @@ class HouseView(GenericAPIView):
             #else:
             #    return render(request, self.template_name, context)
         except House.DoesNotExist:
-            return JsonResponse({"message": "House not found"}, status=404)
+            return JsonResponse({"message": "House not found", "house id": house_id}, status=404)
 
     def post(self,request,house_id):
         """
@@ -227,7 +269,7 @@ class ReservationView(GenericAPIView):
         if queryset:
             return JsonResponse(serializer.data, safe=False, status=200)
         else:
-            return JsonResponse({"message": "Reservation list not found"}, status=404)
+            return JsonResponse({"message": "Reservation list not found", "data": request.data}, status=404)
         
     def post(self, request):
         """
@@ -334,27 +376,28 @@ class ReservationView(GenericAPIView):
         - period_from: start date of the reservation
         - period_to: end date of the reservation
         """
-        import json
-        postData = json.loads(json.dumps(request.POST.dict()))
-        reservation = None
-        if Reservation.objects.filter(student=postData["student"]):
-            reservation = Reservation.objects.filter(student=postData["student"]).latest('create_date')
-        
-        if reservation and reservation.status != 'Cancelled':
-            return JsonResponse({"message": "You can only have one reservation at a time."}, status=400)
-        if not (postData["house_id"] and postData["period_from"] and postData["period_to"]):
-            return JsonResponse({"message": "Missing required fields"}, status=400)
+        postData = request.data   
+        try:
+            reservation = None
+            if postData["student"] and Reservation.objects.all().filter(student=postData["student"]):
+                reservation = Reservation.objects.all().filter(student=postData["student"]).latest('create_date')
+            
+            if reservation and reservation.status != 'Cancelled':
+                return JsonResponse({"message": "You can only have one reservation at a time."}, status=400)
+            if not (postData["house_id"] and postData["period_from"] and postData["period_to"]):
+                return JsonResponse({"message": "Missing required fields"}, status=400)
 
-        serializer = self.serializer_class(data=postData, partial=True)
-        if serializer.is_valid():
-            new_reservation = serializer.save()
-            try:
-                from Accommodation.services import EmailNotificationService
-                EmailNotificationService.notify_specialist_reservation_created(new_reservation)
-            except Exception as e:
-                print(f"Error sending notification email: {str(e)}")        
-            return JsonResponse(serializer.data, status=201)
-        return JsonResponse(serializer.errors, status=400)
+            serializer = self.serializer_class(data=request.data, partial=True)
+            if serializer.is_valid():
+                new_reservation = serializer.save()
+                try:
+                    from Accommodation.services import EmailNotificationService
+                    EmailNotificationService.notify_specialist_reservation_created(new_reservation)
+                except Exception as e:
+                    print(f"Error sending notification email: {str(e)}")        
+                return JsonResponse(serializer.data, status=201)
+        except:
+            return JsonResponse({"message": "Missing essential fields."}, status=400)
         
 class RatingView(GenericAPIView):
     serializer_class = RatingSerializer
