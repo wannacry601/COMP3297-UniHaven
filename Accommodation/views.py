@@ -587,8 +587,8 @@ class HouseUniversityView(GenericAPIView):
         """
         Remove association between a house and a university.
         """
-        print("Delete request data:", request.data)
-        house_id = request.data.get('house')
+        # print("Delete request data:", request.data)
+        house_id = request.data.get('house_id')
         university_id = getattr(request, 'university_id', None)
         if not university_id:
             university_id = request.data.get('university_id')
@@ -640,7 +640,7 @@ class RatingView(GenericAPIView):
         except House.DoesNotExist:
             return JsonResponse({"message": "House not found"}, status=404)
     
-    def post(self, request):
+    def put(self, request):
         """
         Add a rating for a house
         
@@ -650,8 +650,7 @@ class RatingView(GenericAPIView):
         - score: Rating (0.0-5.0)
         - comment: Review text
         """
-        import json
-        postData = json.loads(json.dumps(request.POST.dict()))
+        postData = request.data
         
         house_id = postData.get('house_id')
         student_id = postData.get('student_id')
@@ -675,7 +674,7 @@ class RatingView(GenericAPIView):
                 student=student,
                 house_id=house,
                 status='Confirmed',
-                period_to__lt=datetime.now().date()
+                # period_to__lt=datetime.now().date()
             )
             
             if not reservations.exists():

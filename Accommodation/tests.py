@@ -104,13 +104,18 @@ class HouseListTestCase(APITestCase):
         self.university = University.objects.create(
             name="HW311"
         )
-        self.client.force_authenticate(user=User.objects.create_superuser(
+        # self.client.force_authenticate(user=User.objects.create_superuser(
+        #     username="admin",
+        #     email="admin@example.com",
+        #     password="adminpassword"
+        # ))
+        self.user = User.objects.create_superuser(
             username="admin",
             email="admin@example.com",
             password="adminpassword"
-        ))
+        )
         
-        self.token, created = Token.objects.get_or_create(user=self.client.handler._force_user)
+        self.token, created = Token.objects.get_or_create(user=self.user)
         self.university_token = UniversityToken.objects.create(
             token=self.token,
             university=self.university
@@ -231,11 +236,14 @@ class HouseListTestCase(APITestCase):
         house1.universities.set([self.university])
         house2.universities.set([self.university])
         # Test the list view
-        data = {
-            "university_id": self.university.id, 
-            "format": "json",
-            }
-        request = self.client.get('/list/', data=data)
+        # data = {
+        #     "university_id": self.university.id, 
+        #     "format": "json",
+        # }
+        headers = {
+            'Authorization': f'Token {self.token.key}',
+        }
+        request = self.client.get('/list/', headers=headers)
         self.assertEqual(request.status_code, 200)
     
     def test_houst_list_retrieve_filter(self):
@@ -292,32 +300,32 @@ class HouseListTestCase(APITestCase):
         house3.universities.set([self.university])
         
         # Test the list view with filter
+        headers = {
+            "Authorization": f"Token {self.token.key}",
+        }
+        
         data = {
-            "university_id": self.university.id,
             "type": ["Studio"],
         }
-        request = self.client.get('/list/', data=data)
+        request = self.client.get('/list/', data=data, headers=headers)
         self.assertEqual(request.status_code, 200)
         
         data = {
-            "university_id": self.university.id,
             "price": ["<5000"],
         }
-        request = self.client.get('/list/', data=data)
+        request = self.client.get('/list/', data=data, headers=headers)
         self.assertEqual(request.status_code, 200)
         
         data = {
-            "university_id": self.university.id,
             "bedrooms": ["1"],
         }
-        request = self.client.get('/list/', data=data)
+        request = self.client.get('/list/', data=data, headers=headers)
         self.assertEqual(request.status_code, 200)
         
         data = {
-            "university_id": self.university.id,
             "beds": ["3"],
         }
-        request = self.client.get('/list/', data=data)
+        request = self.client.get('/list/', data=data, headers=headers)
         self.assertEqual(request.status_code, 200)
         
         data = {
@@ -328,10 +336,9 @@ class HouseListTestCase(APITestCase):
         
         # sort by rent
         data = {
-            "university_id": self.university.id,
             "order_by": "rent",
         }
-        request = self.client.get('/list/', data=data)
+        request = self.client.get('/list/', data=data, headers=headers)
         self.assertEqual(request.status_code, 200)
 
 class ReservationTestCase(APITestCase):
@@ -678,3 +685,227 @@ class AuthTokenTestCase(APITestCase):
         
         request = self.client.post('/university_token/')
         self.assertIn(request.status_code, [400, 404])
+        
+class HouseUniversityTestCase(APITestCase):
+    def setUp(self):
+        self.university = University.objects.create(
+            name="HW311"
+        )
+        self.client.force_authenticate(user=User.objects.create_superuser(
+            username="admin",
+            email="admin@example.com",
+            password="adminpassword"
+        ))
+        
+        self.token, created = Token.objects.get_or_create(user=self.client.handler._force_user)
+        self.university_token = UniversityToken.objects.create(
+            token=self.token,
+            university=self.university
+        )
+        self.house = House.objects.create(
+            name="New House",
+            type="Apartment",
+            landlord=Landlord.objects.create(
+                name="John Doe",
+                phone_number="123456789"
+            ),
+            room_number="Room 101",
+            flat_number="Flat 1A",
+            floor_number="5th",
+            geo_address="Posco Building",
+            rent=5000,
+            beds=2,
+            bedrooms=1,
+            available_from="2024-10-01",
+            available_to="2025-10-01",
+            description="A cozy apartment near the university.",
+        )
+        
+    def test_house_university_create(self):
+        """
+        Test the creation of a house-university relationship.
+        """
+        data = {
+            "house_id": self.house.id,
+            "university_id": self.university.id,
+        }
+        request = self.client.post('/house_universities/', data=data)
+        self.assertEqual(request.status_code, 201)
+        house_university = HouseUniversity.objects.get(house=self.house, university=self.university)
+        self.assertEqual(house_university.house, self.house)
+        self.assertEqual(house_university.university, self.university)
+    
+    def test_house_university_retrieve(self):
+        """
+        Test the retrievement of a house-university relationship.
+        """
+        house_university = HouseUniversity.objects.create(
+            house=self.house,
+            university=self.university
+        )
+        
+        data = {
+            "house_id": self.house.id,
+        }
+        request = self.client.get('/house_universities/', data=data)
+        response_data = json.loads(request.content)[0]
+        self.assertEqual(request.status_code, 200)
+        self.assertEqual(response_data['university'], self.university.id)
+        
+        data = {
+            "university_id": self.university.id,
+        }
+        request = self.client.get('/house_universities/', data=data)
+        response_data = json.loads(request.content)[0]
+        self.assertEqual(request.status_code, 200)
+        self.assertEqual(response_data['house'], self.house.id)
+    
+    def test_house_university_delete(self):
+        """
+        Test the deletion of a house-university relationship.
+        """
+        house_university = HouseUniversity.objects.create(
+            house=self.house,
+            university=self.university
+        )
+        
+        data = {
+            "house_id": self.house.id,
+            "university_id": self.university.id,
+        }
+        request = self.client.delete('/house_universities/', data=data)
+        self.assertEqual(request.status_code, 200)
+        
+        with self.assertRaises(HouseUniversity.DoesNotExist):
+            HouseUniversity.objects.get(house=self.house, university=self.university)
+
+class RatingTestCase(APITestCase):
+    def setUp(self):
+        self.university = University.objects.create(
+            name="HW311"
+        )
+        self.client.force_authenticate(user=User.objects.create_superuser(
+            username="admin",
+            email="admin@example.com",
+            password="adminpassword"
+        ))
+        
+        self.token, created = Token.objects.get_or_create(user=self.client.handler._force_user)
+        self.university_token = UniversityToken.objects.create(
+            token=self.token,
+            university=self.university
+        )
+        self.house = House.objects.create(
+            name="New House",
+            type="Apartment",
+            landlord=Landlord.objects.create(
+                name="John Doe",
+                phone_number="123456789"
+            ),
+            room_number="Room 101",
+            flat_number="Flat 1A",
+            floor_number="5th",
+            geo_address="Posco Building",
+            rent=5000,
+            beds=2,
+            bedrooms=1,
+            available_from="2024-10-01",
+            available_to="2025-10-01",
+            description="A cozy apartment near the university.",
+        )
+        
+        self.student = Student.objects.create(
+            name="Jane Smith",
+            phone_number="123456789",
+            email="example@example.com",
+            student_id=3035999999,
+            university=self.university
+        )
+            
+    
+    def test_rating_create(self):
+        """
+        Test the creation of a rating.
+        """
+        data = {
+            "house_id": self.house.id,
+            "student_id": self.student.student_id,
+            "score": 5,
+            "comment": "Fantastic!",
+        }
+        request = self.client.put('/ratings/', data=data)
+        self.assertEqual(request.status_code, 403)
+        
+        self.house.universities.set([self.university])
+        
+        request = self.client.put('/ratings/', data=data)
+        self.assertEqual(request.status_code, 400)
+        
+        reservation = Reservation.objects.create(
+            house_id=self.house,
+            period_from="2024-10-01",
+            period_to="2025-10-01",
+            student=self.student,
+            manager=Specialist.objects.create(
+                name="Dr. Smith",
+                phone_number="123456789",
+                email="example@example.com",
+                university=self.university
+            ),
+        )
+        reservation.status = "Confirmed"
+        reservation.save()
+        
+        request = self.client.put('/ratings/', data=data)
+        self.assertEqual(request.status_code, 201)
+        
+        rating = Rating.objects.get(house=self.house, student_id=data['student_id'])
+        self.assertEqual(rating.house, self.house)
+        self.assertEqual(rating.student_id, data['student_id'])
+        self.assertEqual(rating.score, data['score'])
+        self.assertEqual(rating.comment, data['comment'])
+    
+    def test_rating_retrieve(self):
+        """
+        Test the retrievement of a rating.
+        """
+        rating = Rating.objects.create(
+            house=self.house,
+            student=self.student,
+            score=1,
+            comment="Err...",
+        )
+        data = {
+            "house_id": self.house.id,
+        }
+        request = self.client.get('/ratings/', data=data)
+        self.assertEqual(request.status_code, 200)
+        
+        for response_data in json.loads(request.content):
+            self.assertAlmostEqual(response_data['house'], self.house.id)
+            self.assertAlmostEqual(response_data['student'], self.student.student_id)
+            self.assertAlmostEqual(float(response_data['score']), rating.score)
+            self.assertAlmostEqual(response_data['comment'], rating.comment)
+        
+class LoginTestCase(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_superuser(
+            username="admin",
+            email="example@example.com",
+            password="adminpassword",
+        )
+    
+    def test_login(self):
+        data = {
+            "username": self.user.username,
+            "password": "adminpassword",
+        }
+        request = self.client.post('/login/', data=data)
+        self.assertEqual(request.status_code, 200)
+        
+        data = {
+            "username": "admin",
+            "password": "wrongpassword",
+        }
+        request = self.client.post('/login/', data=data)
+        self.assertEqual(request.status_code, 401)
