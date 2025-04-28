@@ -5,9 +5,6 @@ name = "pypi"
 
 [packages]
 django = "~=5.1"
-djangorestframework = "*"
-drf-spectacular = "*"
-requests = "*"
 
 [dev-packages]
 

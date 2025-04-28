@@ -2,7 +2,14 @@ from datetime import datetime
 from tkinter.constants import CASCADE
 from django.utils import timezone
 from django.db import models
+from rest_framework.authtoken.models import Token
+
 # Create your models here.
+class University(models.Model):
+    name = models.CharField(max_length=255, unique=True)
+    def __str__(self):
+        return self.name
+
 class Landlord(models.Model):
     name = models.CharField(max_length=100)
     phone_number = models.CharField(max_length=100)
@@ -14,6 +21,7 @@ class Student(models.Model):
     email = models.EmailField(max_length=100)
     student_id = models.BigIntegerField(primary_key=True) #University ID, e.g. 3035999999
     phone_number = models.CharField(max_length=100)
+    university = models.ForeignKey(University, on_delete=models.CASCADE, related_name='students')
     def __str__(self):
         return self.name
 
@@ -21,6 +29,7 @@ class Specialist(models.Model):
     name = models.CharField(max_length=100)
     email = models.EmailField(max_length=100)
     phone_number = models.CharField(max_length=100)
+    university = models.ForeignKey(University, on_delete=models.CASCADE, related_name='specialists')
     def __str__(self):
         return self.name
 
@@ -28,6 +37,12 @@ class House(models.Model):
     name = models.CharField(max_length=100)
     type = models.CharField(max_length=100)
     landlord = models.ForeignKey(Landlord, on_delete=models.CASCADE)
+
+    room_number = models.CharField(max_length=20, blank=True)
+    flat_number = models.CharField(max_length=20)
+    floor_number = models.CharField(max_length=20)
+    geo_address = models.CharField(max_length=255)
+
     rent = models.PositiveIntegerField() # Rent per month
     latitude = models.FloatField(default=0.00000)
     longitude = models.FloatField(default=0.00000)
@@ -41,6 +56,17 @@ class House(models.Model):
     SIMS = models.FloatField(default=0.0) # Distance to Swire Institude of Marine Science
     KC = models.FloatField(default=0.0) # Distance to Kadoorie Centre
     FoD = models.FloatField(default=0.0) # Distance to Faculty of Dentistry
+    HKUST = models.FloatField(default=0.0)  # Distance to HKUST Main Campus
+    CUHK = models.FloatField(default=0.0)  # Distance to CUHK Main Campus
+
+    universities = models.ManyToManyField(University, through='HouseUniversity', related_name='houses')
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['room_number', 'flat_number', 'floor_number', 'geo_address'],
+                name='unique_house_address'
+            )
+        ]
     
     def getLocation(self):
         import sys
@@ -72,7 +98,9 @@ class House(models.Model):
             (22.2675, 114.12881), # Seassoon Road Campus
             (22.20805, 114.26021), # Swire Institude of Marine Science
             (22.43022, 114.11429), # Kadoorie Centre
-            (22.28649, 114.14426) # Faculty of Dentistry
+            (22.28649, 114.14426), # Faculty of Dentistry
+            (22.33584, 114.26355), # HKUST Campus
+            (22.41907, 114.20693) # CUHK Campus
         ]
 
         latitude = float(self.latitude)
@@ -81,16 +109,26 @@ class House(models.Model):
                 Equirectangular((latitude, longitude), destinations[1]),
                 Equirectangular((latitude, longitude), destinations[2]),
                 Equirectangular((latitude, longitude), destinations[3]),
-                Equirectangular((latitude, longitude), destinations[4]))
+                Equirectangular((latitude, longitude), destinations[4]),
+                Equirectangular((latitude, longitude), destinations[5]),
+                Equirectangular((latitude, longitude), destinations[6]))
 
     def save(self, *args, **kwargs):
         if not self.pk:
             self.latitude, self.longitude = self.getLocation()
-            self.MC, self.SRC, self.SIMS, self.KC, self.FoD = self.getDistance()
+            self.MC, self.SRC, self.SIMS, self.KC, self.FoD, self.HKUST, self.CUHK = self.getDistance()
         super(House, self).save(*args, **kwargs)
         
     def __str__(self):
         return self.name
+
+class HouseUniversity(models.Model):
+    house = models.ForeignKey(House, on_delete=models.CASCADE)
+    university = models.ForeignKey(University, on_delete=models.CASCADE)
+    class Meta:
+        unique_together = ('house', 'university')
+    def __str__(self):
+        return f"{self.house.name} - {self.university.name}"
 
 class Reservation(models.Model):
     choices = (
@@ -109,7 +147,6 @@ class Reservation(models.Model):
     def save(self, *args, **kwargs):
         if not self.pk:
             self.create_date = datetime.now()
-            self.status = 'Pending'
         super(Reservation, self).save(*args, **kwargs)
 
     def __str__(self):
@@ -125,21 +162,11 @@ class Rating(models.Model):
     def __str__(self):
         return f"Rating {self.score}/5.0 for {self.house.name} by {self.student.name}"
 
-# class Notification(models.Model):
-#     TYPE_CHOICES = (
-#         ('created', 'New Reservation'),
-#         ('cancelled', 'Cancel Reservation'),
-#     )
+
+
+class UniversityToken(models.Model):
+    token = models.OneToOneField(Token, on_delete=models.CASCADE)
+    university = models.ForeignKey(University, on_delete=models.CASCADE)
     
-#     specialist = models.ForeignKey(Specialist, on_delete=models.CASCADE, related_name='notifications')
-#     reservation = models.ForeignKey(Reservation, on_delete=models.CASCADE)
-#     notification_type = models.CharField(max_length=20, choices=TYPE_CHOICES)
-#     message = models.TextField()
-#     created_at = models.DateTimeField(default=timezone.now)
-#     is_read = models.BooleanField(default=False)
-    
-#     class Meta:
-#         ordering = ['-created_at']
-    
-#     def __str__(self):
-#         return f"{self.get_notification_type_display()} - {self.reservation.house_id.name}"
+    def __str__(self):
+        return f"{self.university.name} - {self.token.key}"

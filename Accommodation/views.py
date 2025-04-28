@@ -5,6 +5,13 @@ from django.shortcuts import render
 from django.db.models import Q
 from typing import override
 
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAdminUser
+from rest_framework.response import Response
+from rest_framework.authtoken.models import Token
+from .models import University, UniversityToken
+
 from Accommodation.serializers import *
 from Accommodation.models import *
 
@@ -25,6 +32,44 @@ def login(request):
         else:
             return JsonResponse({"message": "Invalid credentials"}, status=401)
     return JsonResponse({"message": "Method not allowed"}, status=405)
+    
+@api_view(['POST'])
+@permission_classes([IsAdminUser])
+def create_university_token(request):
+    """
+    Create a token for a university.
+    Requires admin permission.
+    ---
+    POST parameters:
+      - university_id: ID of the university to associate with the token
+    """
+    university_id = request.data.get('university_id')
+    if not university_id:
+        return Response({'error': 'university_id is required'}, status=400)
+        
+    try:
+        university = University.objects.get(id=university_id)
+    except University.DoesNotExist:
+        return Response({'error': 'University not found'}, status=404)
+        
+    token, created = Token.objects.get_or_create(user=request.user)
+    
+    uni_token, created = UniversityToken.objects.get_or_create(
+        token=token,
+        defaults={'university': university}
+    )
+    
+    if not created:
+        uni_token.university = university
+        uni_token.save()
+        
+    return Response({
+        'token': token.key,
+        'university': {
+            'id': university.id,
+            'name': university.name
+        }
+    })
 
 class StudentView(GenericAPIView):
     serializer_class = StudentSerializer
@@ -73,13 +118,16 @@ class HouseListView(GenericAPIView):
     template_name = 'Accommodation/list.html'
     
     @override
-    def get_queryset(self):
+    def get_queryset(self, university_id=None):
         """
         Returns a queryset of House objects.
         Filters and sorts the queryset based on the provided parameters.
-        """
-        queryset = House.objects.all()
-        
+        """        
+        if not university_id:
+            return House.objects.none()
+            
+        queryset = House.objects.filter(houseuniversity__university_id=university_id)
+
         filter_type = self.request.GET.getlist('type')
         filter_price = self.request.GET.getlist('price')
         filter_bedrooms = self.request.GET.getlist('bedrooms')
@@ -135,6 +183,9 @@ class HouseListView(GenericAPIView):
                 for f in bed_filters[1:]:
                     combined_filter |= f 
                 queryset = queryset.filter(combined_filter)
+                
+        if filter_location:
+            queryset = queryset.filter(location__in=filter_location)
             
         if filter_available_from:
             queryset = queryset.filter(available_from__lte=filter_available_from)
@@ -143,7 +194,13 @@ class HouseListView(GenericAPIView):
             queryset = queryset.filter(available_to__gte=filter_available_to)
 
         if sort:
-            queryset = queryset.order_by(sort)
+            university_name = getattr(self.request, 'university_name', '')
+            if university_name == 'HKUST':
+                queryset = queryset.order_by('HKUST')
+            elif university_name == 'CUHK':
+                queryset = queryset.order_by('CUHK')
+            else:
+                queryset = queryset.order_by(sort)
             
         return queryset
 
@@ -152,8 +209,9 @@ class HouseListView(GenericAPIView):
         Handles GET requests to retrieve House objects and render the list template.
         If 'format=json' is specified, returns JSON data instead.
         """
+        university_id = request.GET.get("university_id")
         if request.GET.get('format') == 'json':
-            queryset = self.get_queryset()
+            queryset = self.get_queryset(university_id)
             serializer = self.serializer_class(queryset, many=True)
             if queryset: 
                 return JsonResponse(serializer.data, safe=False, status=200)
@@ -204,36 +262,51 @@ class HouseView(GenericAPIView):
     template_name = 'Accommodation/detail.html'
 
     @override
-    def get_queryset(self,house_id):
+    def get_queryset(self,house_id, university_id):
         """
         Returns a queryset of House objects filtered by house_id.
-        """
-        return House.objects.filter(id=house_id)
+        """    
+        if not university_id:
+            return House.objects.none()
+        
+        queryset = House.objects.filter(id=house_id)
+        universities = queryset.first().universities.all()
+        for university in universities:
+            if int(university.id) == int(university_id):
+                return queryset
+        return House.objects.none()
 
     def get(self,request,house_id):
         """
         Handles GET requests to retrieve a specific House object by house_id.
         """
+        university_id = request.GET.get("university_id")
         try:
-            house=House.objects.get(id=house_id)
-            context = {
-                'house': house,
-            }
-            #if request.GET.get('format') == 'json':
-            queryset=self.get_queryset(house_id)
+            queryset = self.get_queryset(house_id, university_id)
+            if not queryset.exists():
+                return JsonResponse({"message": "House not found or not accessible to your university",
+                                     "request id": house_id,
+                                     "uni id": university_id}, status=404)
             serializer = self.serializer_class(queryset, many=True)
             return JsonResponse(serializer.data,safe=False,status=200)
-            #else:
-            #    return render(request, self.template_name, context)
         except House.DoesNotExist:
-            return JsonResponse({"message": "House not found", "house id": house_id}, status=404)
+            return JsonResponse({"message": "House not found"}, status=404)
 
     def post(self,request,house_id):
         """
         Handles POST requests to update a specific House object by house_id.
         """
         try:
-            house = House.objects.get(id=house_id)
+            university_id = getattr(request, 'university_id', None)
+            if university_id:
+                house = House.objects.filter(
+                    id=house_id,
+                    houseuniversity__university_id=university_id
+                ).first()
+                if not house:
+                    return JsonResponse({"message": "House not found or not accessible to your university"}, status=404)
+            else:
+                house = House.objects.get(id=house_id)
             serializer = self.serializer_class(house, data=request.data, partial=True)
             if serializer.is_valid():
                 serializer.save()
@@ -247,7 +320,14 @@ class ReservationView(GenericAPIView):
     
     @override
     def get_queryset(self, **kwargs):
+        university_id = getattr(self.request, 'university_id', None)
+        
         queryset = Reservation.objects.all()
+        if university_id:
+            queryset = queryset.filter(
+                Q(student__university_id=university_id) | 
+                Q(manager__university_id=university_id)
+            )
         for key, value in kwargs.items():
             queryset = queryset.filter(**{key: value})
         return queryset
@@ -269,7 +349,7 @@ class ReservationView(GenericAPIView):
         if queryset:
             return JsonResponse(serializer.data, safe=False, status=200)
         else:
-            return JsonResponse({"message": "Reservation list not found", "data": request.data}, status=404)
+            return JsonResponse({"message": "Reservation list not found"}, status=404)
         
     def post(self, request):
         """
@@ -279,16 +359,46 @@ class ReservationView(GenericAPIView):
         - identity: "student" or "specialist" (mandatory)
         - id: student_id or specialist_id (mandatory)
         - action: "create" or "cancel" for students, "confirm" or "cancel" for specialists (mandatory)
-
+        - reservation_id: reservation_id (optional, when identity is "specialist")
+        - manager: manager_id (optional, when identity is "student" and action is "create", to be specified by the frontend, not the student.)
+        - house_id: house_id (optional, when identity is "student" and action is "create")
+        - period_from: begin_date (optional, when identity is "student" and action is "create")
+        - period_to: end_date (optional, when identity is "student" and action is "create")
         """
         import json
         postData = json.loads(json.dumps(request.POST.dict()))
         reservation = None
         if Reservation.objects.filter(student=postData["id"]):
             reservation = Reservation.objects.filter(student=postData["id"]).latest('create_date')
-            
+        """
+        if not reservation:
+            return JsonResponse({"message": "Reservation not found."}, status=404)
+        """
         if postData["identity"] == "student":
             if postData["action"] == "create":
+                student = Student.objects.get(student_id=postData["student"])
+                university_id = student.university_id
+                try:
+                    house = House.objects.get(id=postData["house_id"])
+                    house_university = HouseUniversity.objects.get(
+                        house=house,
+                        university_id=university_id
+                    )
+                except (House.DoesNotExist, HouseUniversity.DoesNotExist):
+                    return JsonResponse({
+                        "message": "This accommodation is not available for your university"
+                    }, status=400)
+                
+                try:
+                    specialist = Specialist.objects.get(
+                        id=postData["manager"],
+                        university_id=university_id
+                    )
+                except Specialist.DoesNotExist:
+                    return JsonResponse({
+                        "message": "Specialist not found in your university"
+                    }, status=400)
+                
                 if reservation and reservation.status != 'Cancelled':
                     return JsonResponse({"message": "You can only have one reservation at a time."}, status=400)
                 if not (postData["house_id"] and postData["period_from"] and postData["period_to"]):
@@ -366,7 +476,7 @@ class ReservationView(GenericAPIView):
                     return JsonResponse({"message": "Reservation is not available. It's already confirmed or has been cancelled."}, status=400)
         else:
             return JsonResponse({"message": "Invalid identity", "identity": postData["identity"], "original post": request.data}, status=400)
-
+    
     def put(self, request):
         """        
         Accept parameters:
@@ -398,7 +508,78 @@ class ReservationView(GenericAPIView):
                 return JsonResponse(serializer.data, status=201)
         except:
             return JsonResponse({"message": "Missing essential fields."}, status=400)
+
+class HouseUniversityView(GenericAPIView):
+    serializer_class = HouseUniversitySerializer
+    
+    def get(self, request):
+        """
+        List all house-university associations.
+        """
+        house_id = request.GET.get('house_id')
+        university_id = request.GET.get('university_id')
         
+        queryset = HouseUniversity.objects.all()
+        
+        if house_id:
+            queryset = queryset.filter(house_id=house_id)
+            
+        if university_id:
+            queryset = queryset.filter(university_id=university_id)
+            
+        serializer = self.serializer_class(queryset, many=True)
+        return JsonResponse(serializer.data, safe=False, status=200)
+    
+    def post(self, request):
+        """
+        Associate a house with a university.
+        If university is not provided, uses the current token's university.
+        """
+        #data = request.data
+        #print("Request data:", request.data)
+        #print("Request content type:", request.content_type)
+    
+        house_id = request.POST.get('house_id')
+        university_id = request.POST.get('university_id')
+        # print(house_id,university_id) 
+        
+        if not university_id:
+            university_id = getattr(request, 'university_id', None)
+            if not university_id:
+                return JsonResponse({"message": "No university specified or associated with token"}, status=400)
+        
+        if not house_id:
+            return JsonResponse({"message": "House ID is required"}, status=400)
+            
+        serializer_data = {'house': house_id, 'university': university_id}
+        
+        serializer = self.serializer_class(data=serializer_data)
+        if serializer.is_valid():
+            serializer.save()
+            return JsonResponse(serializer.data, status=201)
+        return JsonResponse(serializer.errors, status=400)
+    
+    def delete(self, request):
+        """
+        Remove association between a house and a university.
+        """
+        print("Delete request data:", request.data)
+        house_id = request.data.get('house')
+        university_id = getattr(request, 'university_id', None)
+        print(house_id,university_id)
+        if not house_id or not university_id:
+            return JsonResponse({"message": "Both house and university are required"}, status=400)
+        
+        try:
+            relation = HouseUniversity.objects.get(
+                house_id=house_id,
+                university_id=university_id
+            )
+            relation.delete()
+            return JsonResponse({"message": "Association removed"}, status=200)
+        except HouseUniversity.DoesNotExist:
+            return JsonResponse({"message": "Association not found"}, status=404)
+
 class RatingView(GenericAPIView):
     serializer_class = RatingSerializer
     
@@ -416,6 +597,13 @@ class RatingView(GenericAPIView):
             
         try:
             house = House.objects.get(id=house_id)
+            university_id = getattr(request, 'university_id', None)
+            if university_id and not HouseUniversity.objects.filter(
+                house=house,
+                university_id=university_id
+            ).exists():
+                return JsonResponse({"message": "This house is not available to your university"}, status=403)
+                
             ratings = Rating.objects.filter(house=house)
             
             serializer = self.serializer_class(ratings, many=True)
@@ -449,7 +637,12 @@ class RatingView(GenericAPIView):
             house = House.objects.get(id=house_id)
             student = Student.objects.get(student_id=student_id)
             
-            # Check if the student has a confirmed reservation for this house that has ended
+            if not HouseUniversity.objects.filter(
+                house=house,
+                university_id=student.university_id
+            ).exists():
+                return JsonResponse({"message": "This house is not available to your university"}, status=403)
+            
             reservations = Reservation.objects.filter(
                 student=student,
                 house_id=house,
@@ -460,11 +653,9 @@ class RatingView(GenericAPIView):
             if not reservations.exists():
                 return JsonResponse({"message": "Only students with completed contracts can rate houses"}, status=400)
             
-            # Check if the student has already rated this house
             if Rating.objects.filter(house=house, student=student).exists():
                 return JsonResponse({"message": "You have already rated this house"}, status=400)
                 
-            # Create rating
             rating = Rating.objects.create(
                 house=house,
                 student=student,

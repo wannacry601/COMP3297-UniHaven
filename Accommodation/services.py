@@ -1,9 +1,11 @@
 from django.core.mail import send_mail
 from django.conf import settings
 from Accommodation.models import Reservation
-
+"""
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 DEFAULT_FROM_EMAIL = 'accommodation@example.com'
+"""
+
 class EmailNotificationService:
     @staticmethod
     def notify_specialist_reservation_created(reservation):
