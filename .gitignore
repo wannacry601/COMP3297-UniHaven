@@ -1,6 +1,5 @@
 .idea/
 .vscode/
-.coverage
 generate_schema.py
-htmlcov/
 __pycache__/
+.DS_Store

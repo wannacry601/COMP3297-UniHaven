@@ -43,7 +43,9 @@ def create_university_token(request):
     POST parameters:
       - university_id: ID of the university to associate with the token
     """
-    university_id = request.data.get('university_id')
+    university_id = getattr(request, 'university_id', None)
+    if not university_id:
+        university_id = request.data.get('university_id')
     if not university_id:
         return Response({'error': 'university_id is required'}, status=400)
         
@@ -63,13 +65,14 @@ def create_university_token(request):
         uni_token.university = university
         uni_token.save()
         
-    return Response({
-        'token': token.key,
-        'university': {
-            'id': university.id,
-            'name': university.name
-        }
-    })
+    return JsonResponse({
+                            'token': token.key,
+                            'university': {
+                                'id': university.id,
+                                'name': university.name
+                            }
+                        },
+                        status=200)
 
 class StudentView(GenericAPIView):
     serializer_class = StudentSerializer
@@ -80,7 +83,7 @@ class StudentView(GenericAPIView):
         return queryset
     
     def get(self, request):
-        id = request.data["student_id"]
+        id = request.GET.get("student_id") 
         queryset = self.get_queryset(id)
         serializer = self.serializer_class(queryset, many=True)
         if queryset:
@@ -102,7 +105,7 @@ class StudentView(GenericAPIView):
         """
         Handles POST requests to update an existing Student object.
         """
-        student_id = request.data["student_id"]
+        student_id = request.POST.get("student_id")
         try:
             student = Student.objects.get(student_id=student_id)
             serializer = self.serializer_class(student, data=request.data, partial=True)
@@ -194,13 +197,13 @@ class HouseListView(GenericAPIView):
             queryset = queryset.filter(available_to__gte=filter_available_to)
 
         if sort:
-            university_name = getattr(self.request, 'university_name', '')
-            if university_name == 'HKUST':
-                queryset = queryset.order_by('HKUST')
-            elif university_name == 'CUHK':
-                queryset = queryset.order_by('CUHK')
-            else:
-                queryset = queryset.order_by(sort)
+            # university_name = getattr(self.request, 'university_name', '')
+            # if university_name == 'HKUST':
+            #     queryset = queryset.order_by('HKUST')
+            # elif university_name == 'CUHK':
+            #     queryset = queryset.order_by('CUHK')
+            # else:
+            queryset = queryset.order_by(sort)
             
         return queryset
 
@@ -209,43 +212,48 @@ class HouseListView(GenericAPIView):
         Handles GET requests to retrieve House objects and render the list template.
         If 'format=json' is specified, returns JSON data instead.
         """
-        university_id = request.GET.get("university_id")
-        if request.GET.get('format') == 'json':
-            queryset = self.get_queryset(university_id)
-            serializer = self.serializer_class(queryset, many=True)
-            if queryset: 
-                return JsonResponse(serializer.data, safe=False, status=200)
-            else: 
-                return JsonResponse({"message": "House list not found"}, status=404)
+        university_id = getattr(request, 'university_id', None)
+        if not university_id:
+            university_id = request.GET.get('university_id')
+        # if request.GET.get('format') == 'json':
+        queryset = self.get_queryset(university_id)
+        serializer = self.serializer_class(queryset, many=True)
+        if queryset: 
+            return JsonResponse(serializer.data, safe=False, status=200)
+        else: 
+            return JsonResponse({"message": "House list not found"}, status=404)
         
-        queryset = self.get_queryset()
-        houses = []
-        for house in queryset:
-            houses.append({
-                'id': house.id,
-                'name': house.name,
-                'type': house.type,
-                'landlord': {'name': house.landlord.name if hasattr(house, 'landlord') and house.landlord else 'Unknown'},
-                'rent': house.rent,
-                'location': (house.latitude, house.longitude),
-                'beds': house.beds,
-                'bedrooms': house.bedrooms,
-                'available_from': house.available_from,
-                'available_to': house.available_to,
-                'description': house.description,
-                'area': getattr(house, 'area', 'N/A'),
-                'distance': getattr(house, 'distance', 'N/A'),
-                'features': getattr(house, 'features', 'No features listed')
-            })
+        # --------------------
+        # ---- DEPRECATED ----
+        # --------------------
+        # queryset = self.get_queryset()
+        # houses = []
+        # for house in queryset:
+        #     houses.append({
+        #         'id': house.id,
+        #         'name': house.name,
+        #         'type': house.type,
+        #         'landlord': {'name': house.landlord.name if hasattr(house, 'landlord') and house.landlord else 'Unknown'},
+        #         'rent': house.rent,
+        #         'location': (house.latitude, house.longitude),
+        #         'beds': house.beds,
+        #         'bedrooms': house.bedrooms,
+        #         'available_from': house.available_from,
+        #         'available_to': house.available_to,
+        #         'description': house.description,
+        #         'area': getattr(house, 'area', 'N/A'),
+        #         'distance': getattr(house, 'distance', 'N/A'),
+        #         'features': getattr(house, 'features', 'No features listed')
+        #     })
         
-        context = {
-            'houses': houses,
-            'total_count': len(houses),
-            'showing_count': len(houses),
-            'page_count': 1
-        }
+        # context = {
+        #     'houses': houses,
+        #     'total_count': len(houses),
+        #     'showing_count': len(houses),
+        #     'page_count': 1
+        # }
         
-        return render(request, self.template_name, context)
+        # return render(request, self.template_name, context)
 
     def put(self, request):
         """
@@ -280,7 +288,9 @@ class HouseView(GenericAPIView):
         """
         Handles GET requests to retrieve a specific House object by house_id.
         """
-        university_id = request.GET.get("university_id")
+        university_id = getattr(request, 'university_id', None)
+        if not university_id:
+            university_id = request.GET.get('university_id')
         try:
             queryset = self.get_queryset(house_id, university_id)
             if not queryset.exists():
@@ -297,7 +307,9 @@ class HouseView(GenericAPIView):
         Handles POST requests to update a specific House object by house_id.
         """
         try:
-            university_id = getattr(request, 'university_id', None)
+            university_id = getattr(self.request, 'university_id', None)
+            if not university_id:
+                university_id = request.POST.get('university_id')
             if university_id:
                 house = House.objects.filter(
                     id=house_id,
@@ -321,6 +333,8 @@ class ReservationView(GenericAPIView):
     @override
     def get_queryset(self, **kwargs):
         university_id = getattr(self.request, 'university_id', None)
+        if not university_id:
+            university_id = self.request.GET.get('university_id')
         
         queryset = Reservation.objects.all()
         if university_id:
@@ -341,9 +355,9 @@ class ReservationView(GenericAPIView):
         - identity: "student" or "specialist" (mandatory)
         - id: student_id or specialist_id (mandatory)
         """
-        id = request.data["id"]
-        if request.data['identity'] == "student": queryset = self.get_queryset(student=id)
-        elif request.data['identity'] == "specialist": queryset = self.get_queryset(manager=id)
+        id = request.GET.get("id")
+        if request.GET.get("identity") == "student": queryset = self.get_queryset(student=id)
+        elif request.GET.get("identity") == "specialist": queryset = self.get_queryset(manager=id)
         else: return JsonResponse({"message": "Invalid identity", "Identity": request.GET.get('identity')}, status=400)
         serializer = self.serializer_class(queryset, many=True)
         if queryset:
@@ -375,52 +389,58 @@ class ReservationView(GenericAPIView):
             return JsonResponse({"message": "Reservation not found."}, status=404)
         """
         if postData["identity"] == "student":
-            if postData["action"] == "create":
-                student = Student.objects.get(student_id=postData["student"])
-                university_id = student.university_id
-                try:
-                    house = House.objects.get(id=postData["house_id"])
-                    house_university = HouseUniversity.objects.get(
-                        house=house,
-                        university_id=university_id
-                    )
-                except (House.DoesNotExist, HouseUniversity.DoesNotExist):
-                    return JsonResponse({
-                        "message": "This accommodation is not available for your university"
-                    }, status=400)
+            # --------------------
+            # ---- DEPRECATED ----
+            # --------------------
+            # Use PUT method instead.
+            #
+            # if postData["action"] == "create":
+            #     student = Student.objects.get(student_id=postData["student"])
+            #     university_id = student.university_id
+            #     try:
+            #         house = House.objects.get(id=postData["house_id"])
+            #         house_university = HouseUniversity.objects.get(
+            #             house=house,
+            #             university_id=university_id
+            #         )
+            #     except (House.DoesNotExist, HouseUniversity.DoesNotExist):
+            #         return JsonResponse({
+            #             "message": "This accommodation is not available for your university"
+            #         }, status=400)
                 
-                try:
-                    specialist = Specialist.objects.get(
-                        id=postData["manager"],
-                        university_id=university_id
-                    )
-                except Specialist.DoesNotExist:
-                    return JsonResponse({
-                        "message": "Specialist not found in your university"
-                    }, status=400)
+            #     try:
+            #         specialist = Specialist.objects.get(
+            #             id=postData["manager"],
+            #             university_id=university_id
+            #         )
+            #     except Specialist.DoesNotExist:
+            #         return JsonResponse({
+            #             "message": "Specialist not found in your university"
+            #         }, status=400)
                 
-                if reservation and reservation.status != 'Cancelled':
-                    return JsonResponse({"message": "You can only have one reservation at a time."}, status=400)
-                if not (postData["house_id"] and postData["period_from"] and postData["period_to"]):
-                    return JsonResponse({"message": "Missing required fields"}, status=400)
-                postData["status"] = "Pending"
-                postData["student"] = postData["id"]
-                postData.pop("id")
-                postData.pop("identity")
-                postData.pop("action")
-                serializer = self.serializer_class(data=postData, partial=True)
-                if serializer.is_valid():
-                    new_reservation = serializer.save()
-                    try:
-                        from Accommodation.services import EmailNotificationService
-                        EmailNotificationService.notify_specialist_reservation_created(new_reservation)
-                    except Exception as e:
-                        print(f"Error sending notification email: {str(e)}")
+            #     if reservation and reservation.status != 'Cancelled':
+            #         return JsonResponse({"message": "You can only have one reservation at a time."}, status=400)
+            #     if not (postData["house_id"] and postData["period_from"] and postData["period_to"]):
+            #         return JsonResponse({"message": "Missing required fields"}, status=400)
+            #     postData["status"] = "Pending"
+            #     postData["student"] = postData["id"]
+            #     postData.pop("id")
+            #     postData.pop("identity")
+            #     postData.pop("action")
+            #     serializer = self.serializer_class(data=postData, partial=True)
+            #     if serializer.is_valid():
+            #         new_reservation = serializer.save()
+            #         try:
+            #             from Accommodation.services import EmailNotificationService
+            #             EmailNotificationService.notify_specialist_reservation_created(new_reservation)
+            #         except Exception as e:
+            #             print(f"Error sending notification email: {str(e)}")
                     
-                    return JsonResponse(serializer.data, status=201)
-                return JsonResponse(serializer.errors, status=400)
+            #         return JsonResponse(serializer.data, status=201)
+            #     return JsonResponse(serializer.errors, status=400)
 
-            elif postData["action"] == "cancel":
+            # elif postData["action"] == "cancel":
+            if postData["action"] == "cancel":
                 if not reservation:
                     return JsonResponse({"message": "Reservation not found."}, status=404)
                 if reservation.status == "Confirmed":
@@ -507,7 +527,7 @@ class ReservationView(GenericAPIView):
                     print(f"Error sending notification email: {str(e)}")        
                 return JsonResponse(serializer.data, status=201)
         except:
-            return JsonResponse({"message": "Missing essential fields."}, status=400)
+            return JsonResponse({"message": "Unknown error."}, status=400)
 
 class HouseUniversityView(GenericAPIView):
     serializer_class = HouseUniversitySerializer
@@ -517,7 +537,9 @@ class HouseUniversityView(GenericAPIView):
         List all house-university associations.
         """
         house_id = request.GET.get('house_id')
-        university_id = request.GET.get('university_id')
+        university_id = getattr(request, 'university_id', None)
+        if not university_id:
+            university_id = request.GET.get('university_id')
         
         queryset = HouseUniversity.objects.all()
         
@@ -540,7 +562,9 @@ class HouseUniversityView(GenericAPIView):
         #print("Request content type:", request.content_type)
     
         house_id = request.POST.get('house_id')
-        university_id = request.POST.get('university_id')
+        university_id = getattr(request, 'university_id', None)
+        if not university_id:
+            university_id = request.POST.get('university_id')
         # print(house_id,university_id) 
         
         if not university_id:
@@ -566,7 +590,9 @@ class HouseUniversityView(GenericAPIView):
         print("Delete request data:", request.data)
         house_id = request.data.get('house')
         university_id = getattr(request, 'university_id', None)
-        print(house_id,university_id)
+        if not university_id:
+            university_id = request.data.get('university_id')
+        #print(house_id,university_id)
         if not house_id or not university_id:
             return JsonResponse({"message": "Both house and university are required"}, status=400)
         
@@ -598,6 +624,8 @@ class RatingView(GenericAPIView):
         try:
             house = House.objects.get(id=house_id)
             university_id = getattr(request, 'university_id', None)
+            if not university_id:
+                university_id = request.data.get('university_id')
             if university_id and not HouseUniversity.objects.filter(
                 house=house,
                 university_id=university_id

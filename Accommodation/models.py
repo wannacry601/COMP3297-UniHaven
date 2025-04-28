@@ -146,7 +146,8 @@ class Reservation(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.pk:
-            self.create_date = datetime.now()
+            self.create_date = datetime.now(tz=timezone.get_current_timezone())
+            self.status = 'Pending'
         super(Reservation, self).save(*args, **kwargs)
 
     def __str__(self):
