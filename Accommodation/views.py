@@ -526,8 +526,10 @@ class ReservationView(GenericAPIView):
                 except Exception as e:
                     print(f"Error sending notification email: {str(e)}")        
                 return JsonResponse(serializer.data, status=201)
+            else:
+                return JsonResponse({"message": "Invalid data", "errors": serializer.errors}, status=400)
         except:
-            return JsonResponse({"message": "Unknown error."}, status=400)
+            return JsonResponse({"message": "Unknown error"}, status=500)
 
 class HouseUniversityView(GenericAPIView):
     serializer_class = HouseUniversitySerializer
